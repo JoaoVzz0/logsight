@@ -7,8 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// BRIN on timestamp and GIN on attributes are not expressible here.
-/// They are created in a manual migration — see docs/adr/0003.
+/// The BRIN index on timestamp, the GIN index on attributes and the pg_trgm
+/// index on body are not expressible here. They live in the manual migration
+/// 20260909130000_search_indexes — see docs/adr/0003 and docs/adr/0009.
 model LogRecord {
   id             String   @id @default(uuid()) @db.Uuid
   timestamp      DateTime @db.Timestamptz(3)
@@ -38,7 +39,6 @@ model LogRecord {
 model Issue {
   fingerprint      String      @id
   sampleMessage    String      @map("sample_message")
-  normalizedBody   String      @map("normalized_body")
   severityNumber   Int         @map("severity_number")
   firstSeen        DateTime    @map("first_seen") @db.Timestamptz(3)
   lastSeen         DateTime    @map("last_seen") @db.Timestamptz(3)
