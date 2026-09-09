@@ -5,7 +5,7 @@ import { IssuesPage } from '../features/issues/pages/issues-page'
 import { LogsPage } from '../features/logs/pages/logs-page'
 import { ImportsPage } from '../features/imports/pages/imports-page'
 
-export const router = createBrowserRouter([
+export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
   {
     element: <AppLayout />,
     children: [
