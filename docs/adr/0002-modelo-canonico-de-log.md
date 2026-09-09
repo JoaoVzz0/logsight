@@ -32,14 +32,19 @@ LogRecord
 ├─ environment        ┘
 ├─ trace_id, span_id  -- correlação distribuída
 ├─ attributes  JSONB  -- cauda variável, específica da fonte
-├─ source_type        -- gcp | aws_cloudwatch | nginx | syslog | json
+├─ source_type        -- id do adapter de origem (ver ADR 0004)
 ├─ fingerprint        -- ver ADR 0005
-└─ raw         JSONB  -- registro original, sem perda
+└─ raw                -- texto original do registro, verbatim, sem perda
 ```
 
 A separação entre **núcleo estável** (colunas tipadas) e **cauda variável**
 (`attributes` em JSONB) é o eixo do modelo, e é o que sustenta a decisão de
 banco no ADR 0003.
+
+O `source_type` é o identificador do adapter que produziu o registro —
+`gcp-cloud-logging`, `aws-cloudwatch`, `json-lines`, `nginx` (ADR 0004). Os
+ids dos adapters são a fonte única desses valores; este documento não mantém
+uma lista paralela e não os redefine.
 
 ### Normalização de severidade
 
@@ -55,9 +60,12 @@ OTel, preservando o rótulo original em `severity_text`:
 
 ### Preservação do original
 
-O campo `raw` guarda o registro como veio. Isso custa espaço, mas garante
-que um erro de parser não destrua informação e permite reprocessar uma
-importação com um adapter corrigido, sem pedir o arquivo de novo.
+O campo `raw` guarda o texto original do registro, verbatim — a linha como
+veio da fonte, sem reserialização, preservando formatação e ordem de chaves.
+Isso custa espaço, mas garante que um erro de parser não destrua informação e
+permite reprocessar uma importação com um adapter corrigido, sem pedir o
+arquivo de novo. Como esse valor é persistido é detalhe de infraestrutura
+(ADR 0009), não do modelo canônico.
 
 ## Alternativas consideradas
 

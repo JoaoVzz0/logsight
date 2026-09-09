@@ -27,9 +27,13 @@ variável específica de cada origem.
 
 **PostgreSQL** como store principal, com:
 
-- **colunas tipadas** para o núcleo do `LogRecord`
-- **JSONB** para `attributes` e `raw`, com índice **GIN** para filtro por
-  chave arbitrária (`attributes->>'region' = 'us-east-1'`)
+- **colunas tipadas** para o núcleo do `LogRecord`, com `severity_number` e
+  `severity_text` **nulos** quando a origem não traz severidade determinável
+  (ADR 0002, ADR 0005)
+- **JSONB** para `attributes`, com índice **GIN** para filtro por chave
+  arbitrária (`attributes->>'region' = 'us-east-1'`)
+- **TEXT** para `raw` — o registro original preservado verbatim (ADR 0002).
+  Nunca é consultado por chave, então não recebe índice e não precisa de JSONB
 - **BRIN** em `timestamp` — o dado é append-only e naturalmente ordenado por
   tempo, então o índice fica ordens de grandeza menor que um B-tree
   equivalente
