@@ -7,6 +7,7 @@ export type ParseErrorCode =
   | 'malformed-syntax'
   | 'unrecognized-shape'
   | 'missing-timestamp'
+  | 'invalid-timestamp'
 
 export type ParseError = {
   readonly kind: 'parse-error'
