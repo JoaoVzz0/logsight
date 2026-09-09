@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// BRIN on timestamp and GIN on attributes are not expressible here.
+/// They are created in a manual migration — see docs/adr/0003.
+model LogRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  timestamp      DateTime @db.Timestamptz(3)
+  observedAt     DateTime @default(now()) @map("observed_at") @db.Timestamptz(3)
+  severityNumber Int      @map("severity_number")
+  severityText   String   @map("severity_text")
+  body           String
+  serviceName    String?  @map("service_name")
+  host           String?
+  environment    String?
+  traceId        String?  @map("trace_id")
+  spanId         String?  @map("span_id")
+  attributes     Json     @default("{}")
+  sourceType     String   @map("source_type")
+  fingerprint    String
+  raw            Json
+  importJobId    String   @map("import_job_id") @db.Uuid
+
+  issue     Issue     @relation(fields: [fingerprint], references: [fingerprint])
+  importJob ImportJob @relation(fields: [importJobId], references: [id])
+
+  @@index([serviceName, severityNumber, timestamp(sort: Desc)])
+  @@index([fingerprint, timestamp(sort: Desc)])
+  @@map("log_records")
+}
+
+model Issue {
+  fingerprint      String      @id
+  sampleMessage    String      @map("sample_message")
+  normalizedBody   String      @map("normalized_body")
+  severityNumber   Int         @map("severity_number")
+  firstSeen        DateTime    @map("first_seen") @db.Timestamptz(3)
+  lastSeen         DateTime    @map("last_seen") @db.Timestamptz(3)
+  eventCount       BigInt      @default(0) @map("event_count")
+  affectedServices String[]    @map("affected_services")
+  status           IssueStatus @default(UNRESOLVED)
+  resolvedAt       DateTime?   @map("resolved_at") @db.Timestamptz(3)
+
+  records LogRecord[]
+
+  @@index([status, lastSeen(sort: Desc)])
+  @@map("issues")
+}
+
+enum IssueStatus {
+  UNRESOLVED
+  RESOLVED
+  IGNORED
+}
+
+model ImportJob {
+  id             String    @id @default(uuid()) @db.Uuid
+  filename       String
+  sizeBytes      BigInt    @map("size_bytes")
+  sourceType     String?   @map("source_type")
+  status         JobStatus @default(PENDING)
+  totalLines     Int?      @map("total_lines")
+  processedLines Int       @default(0) @map("processed_lines")
+  parseErrors    Int       @default(0) @map("parse_errors")
+  error          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  records LogRecord[]
+
+  @@map("import_jobs")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}

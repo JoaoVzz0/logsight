@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test and dev caches
+coverage/
+.vite/
+.eslintcache
+playwright-report/
+blob-report/
+test-results/
+playwright/.cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*-service-account.json
+service-account*.json
+gcp-credentials*.json
+credentials.json
+
+# Runtime data (local file storage — STORAGE_LOCAL_PATH)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local overrides (shared config in .claude/ is committed)
+.claude/settings.local.json
+
+# Generated but intentionally committed — do not add these here:
+#   packages/api-client/openapi.json
+#   packages/api-client/src/
