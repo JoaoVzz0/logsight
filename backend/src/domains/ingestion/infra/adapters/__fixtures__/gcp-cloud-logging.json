@@ -1,0 +1,184 @@
+{
+  "cloudRunError": {
+    "insertId": "1a2b3c4d5e6f",
+    "logName": "projects/example-project/logs/run.googleapis.com%2Fstderr",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "checkout",
+        "revision_name": "checkout-00042-hex",
+        "location": "us-central1",
+        "configuration_name": "checkout",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T10:15:30.123456789Z",
+    "receiveTimestamp": "2026-09-08T10:15:31.000000000Z",
+    "severity": "ERROR",
+    "textPayload": "checkout failed for order 4471: payment gateway timeout",
+    "labels": {
+      "instanceId": "00bf4bf000",
+      "team": "payments"
+    },
+    "operation": {
+      "id": "req-8829",
+      "producer": "run.googleapis.com"
+    },
+    "httpRequest": {
+      "requestMethod": "POST",
+      "requestUrl": "https://checkout.example.com/api/orders",
+      "status": 500,
+      "userAgent": "curl/8.4.0",
+      "remoteIp": "203.0.113.7",
+      "latency": "1.021s"
+    },
+    "trace": "projects/example-project/traces/0f8fad5bd9cb469fa16570867728950e",
+    "spanId": "000000000000004a",
+    "traceSampled": true
+  },
+  "k8sJsonMessage": {
+    "insertId": "9z8y7x6w5v4u",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "api",
+        "pod_name": "api-6d4cf56db7-abcde",
+        "namespace_name": "production",
+        "cluster_name": "primary",
+        "location": "us-central1",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T11:00:00.500000000Z",
+    "severity": "WARNING",
+    "jsonPayload": {
+      "message": "cache miss for key user:8829 region eu-west-1",
+      "latencyMs": 42,
+      "cacheKey": "user:8829"
+    },
+    "labels": {
+      "k8s-pod/app": "api"
+    }
+  },
+  "gceJsonNoMessage": {
+    "insertId": "gce77gce77gce",
+    "logName": "projects/example-project/logs/syslog",
+    "resource": {
+      "type": "gce_instance",
+      "labels": {
+        "instance_id": "8829374652901234",
+        "zone": "us-central1-a",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T12:30:45.000000000Z",
+    "severity": "INFO",
+    "jsonPayload": {
+      "event": "startup-script finished",
+      "exitCode": 0,
+      "durationMs": 1200
+    }
+  },
+  "gaeText": {
+    "insertId": "gae1gae1gae1",
+    "logName": "projects/example-project/logs/appengine.googleapis.com%2Frequest_log",
+    "resource": {
+      "type": "gae_app",
+      "labels": {
+        "module_id": "default",
+        "version_id": "20260908t100000",
+        "zone": "us1",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T13:05:00.000000000Z",
+    "severity": "DEBUG",
+    "textPayload": "handling request for /_ah/health from 10.0.0.1"
+  },
+  "unmappedResource": {
+    "insertId": "ps1ps1ps1ps1",
+    "logName": "projects/example-project/logs/pubsub.googleapis.com%2Fpublish",
+    "resource": {
+      "type": "pubsub_topic",
+      "labels": {
+        "topic_id": "order-events",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T14:00:00.000000000Z",
+    "severity": "INFO",
+    "textPayload": "message 112233 published to order-events"
+  },
+  "defaultSeverity": {
+    "insertId": "def1def1def1",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "mailer",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T15:00:00.000000000Z",
+    "severity": "DEFAULT",
+    "textPayload": "mailer worker tick"
+  },
+  "noSeverity": {
+    "insertId": "nos1nos1nos1",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "mailer",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T15:01:00.000000000Z",
+    "textPayload": "mailer worker tick without severity"
+  },
+  "noTimestamp": {
+    "insertId": "not1not1not1",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "mailer",
+        "project_id": "example-project"
+      }
+    },
+    "severity": "INFO",
+    "textPayload": "entry with no timestamp field"
+  },
+  "bothPayloads": {
+    "insertId": "both1both1bo",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "worker",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T16:00:00.000000000Z",
+    "severity": "INFO",
+    "textPayload": "text payload wins",
+    "jsonPayload": {
+      "message": "json payload loses"
+    }
+  },
+  "noTrace": {
+    "insertId": "notr1notr1no",
+    "logName": "projects/example-project/logs/stdout",
+    "resource": {
+      "type": "gce_instance",
+      "labels": {
+        "instance_id": "111222333",
+        "project_id": "example-project"
+      }
+    },
+    "timestamp": "2026-09-08T17:00:00.000000000Z",
+    "severity": "INFO",
+    "textPayload": "no trace and no span here"
+  }
+}
