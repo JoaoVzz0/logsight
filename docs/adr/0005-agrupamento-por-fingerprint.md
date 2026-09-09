@@ -24,18 +24,53 @@ entidade `Issue` agregando todos os eventos de mesma assinatura.
 
 ### Normalização da mensagem
 
-Antes do hash, a mensagem passa por substituição de tokens variáveis:
+Antes do hash, a mensagem é tokenizada. O resultado da normalização é uma
+**sequência ordenada de spans tipados**: trechos de texto fixo intercalados
+com spans variáveis, cada um carregando a sua espécie. A assinatura vem de
+uma serialização canônica dessa sequência — uma string derivada, detalhe
+interno do cálculo, que não é exibida nem persistida.
 
 ```
 "User 8f3a-21b failed login from 192.168.1.44 after 3200ms"
                         ↓
-"User <uuid> failed login from <ip> after <num>ms"
+[texto "User "] [uuid] [texto " failed login from "] [ip]
+[texto " after "] [num] [texto "ms"]
                         ↓
-fingerprint = sha1(normalizado + service_name + severity_number)
+fingerprint = sha1(serialização canônica + service_name + severity_number)
 ```
 
-Padrões substituídos: UUID, IP (v4 e v6), número, hexadecimal longo,
+Espécies reconhecidas: UUID, IP (v4 e v6), número, hexadecimal longo,
 timestamp, caminho com identificador, e-mail, e valores entre aspas.
+
+A notação `<uuid>`, `<ip>`, `<num>` usada neste documento — e a notação
+`⟨id⟩` usada no ADR 0011 — é **ilustrativa**. Nenhuma forma de colchete é
+valor armazenado; as duas descrevem a mesma sequência de spans. Quem
+renderiza escolhe a representação visual de cada espécie (ADR 0011).
+
+### Escopo do corpo considerado
+
+O agrupamento usa a **primeira linha não vazia do corpo**, com espaços em
+sequência colapsados. O corpo completo é preservado em `raw` (ADR 0002) e
+exibido no detalhe da ocorrência.
+
+O trade-off é assumido: a primeira linha agrupa demais quando a mensagem de
+topo é genérica — `Internal server error` cobre causas distintas. Isso é
+contido pela presença de `service_name` e `severity_number` na assinatura, e
+o refinamento já previsto é o fingerprint hierárquico descrito em
+*Revisitar quando*.
+
+### Serviço e severidade ausentes
+
+Nem toda fonte traz serviço, e nem toda severidade é determinável (ADR 0002).
+Cada ausência contribui para a assinatura com um **sentinela estável**,
+escolhido de forma que não possa ocorrer naturalmente como valor real.
+Registros sem serviço agrupam entre si e nunca se confundem com um serviço
+existente; o mesmo vale para severidade.
+
+Não se assume o nível mais baixo da escala no lugar da severidade ausente.
+Isso transformaria "não classificado" em um nível real, misturaria registros
+sem severidade com registros genuinamente de nível mínimo e distorceria a
+taxa de erro que o dashboard calcula.
 
 ### Entidade Issue
 

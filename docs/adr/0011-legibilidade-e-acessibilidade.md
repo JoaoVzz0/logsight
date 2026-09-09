@@ -22,9 +22,11 @@ O ADR 0005 define regras de normalização que identificam UUID, IP, número,
 hexadecimal, timestamp, caminho e e-mail dentro da mensagem, para calcular a
 assinatura de agrupamento.
 
-**As mesmas regras são usadas no frontend para tokenizar e colorir a
-mensagem.** Identificador, valor numérico e causa recebem tratamento visual
-distinto:
+**O frontend consome os spans tipados produzidos por essa normalização** e
+escolhe a representação visual de cada espécie. Não há regex própria de
+realce e a mensagem não é re-parseada na camada de apresentação: a espécie
+do span já vem decidida. Identificador, valor numérico e causa recebem
+tratamento visual distinto:
 
 ```
 User 8f3a-21b failed login from 192.168.1.44 after 3200ms — upstream refused
@@ -39,8 +41,10 @@ recalculada a cada frame de scroll.
 
 ### Na lista de issues, exibir o padrão, não a amostra
 
-O issue mostra a forma normalizada, com os placeholders estilizados como
-elementos distintos do texto fixo:
+O issue mostra a forma normalizada, com os spans variáveis estilizados como
+elementos distintos do texto fixo. Os colchetes abaixo são notação deste
+documento, não o valor armazenado — a escolha do delimitador, ou de nenhum,
+é decisão de renderização (ADR 0005):
 
 ```
 User ⟨id⟩ failed login from ⟨ip⟩ after ⟨num⟩ms
