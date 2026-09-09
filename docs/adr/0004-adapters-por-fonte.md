@@ -37,6 +37,24 @@ aplica. Registrar uma nova fonte é adicionar uma implementação ao registry.
 
 Três adapters sólidos e um contrato claro valem mais que oito parciais.
 
+### Próxima fonte
+
+syslog RFC5424 é a extensão natural deste conjunto. O contrato único de
+adapter definido acima foi desenhado exatamente para isso: adicioná-lo é um
+novo arquivo em `infra/adapters/` mais um teste de fixture, sem tocar no
+pipeline de importação nem no domínio — é o retorno concreto da decisão de
+portas.
+
+A única peça de normalização que syslog acrescenta é o mapeamento da
+severidade PRI (0–7) para as seis bandas OTel. Ela não foi implementada
+porque nenhuma fonte no escopo atual — GCP, CloudWatch, JSON Lines, nginx —
+produz severidade nesse formato, e uma tabela de mapeamento sem adapter que a
+consuma é peso morto.
+
+Isto é fonte futura, não dívida técnica: nenhum código atual depende de um
+adapter de syslog nem do mapeamento PRI, e a linha correspondente na tabela
+de severidade do ADR 0002 está marcada como ainda não suportada.
+
 ### Detecção de formato
 
 Na importação, os primeiros registros do arquivo são oferecidos ao `detect`

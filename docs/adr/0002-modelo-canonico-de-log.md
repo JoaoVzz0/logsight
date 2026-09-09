@@ -50,7 +50,7 @@ OTel, preservando o rótulo original em `severity_text`:
 |---|---|---|
 | GCP Cloud Logging | `severity` (string) | `DEFAULT`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
 | AWS CloudWatch | não padronizado | heurística sobre a mensagem ou o payload |
-| Syslog RFC5424 | PRI (0–7) | `emerg` … `debug` |
+| Syslog RFC5424 — fonte futura, ainda não suportada (ver ADR 0004) | PRI (0–7) | `emerg` … `debug` |
 | nginx | canal | `access` → INFO, `error` → ERROR |
 
 ### Preservação do original
