@@ -1,10 +1,19 @@
+import { useSearchParams } from 'react-router-dom'
+
+import { LogsView } from '../components/logs-view'
+import {
+  filtersToSearchParams,
+  parseLogFilters,
+  type LogFilters,
+} from '../model/filters'
+
 export function LogsPage() {
-  return (
-    <section>
-      <h1 className="text-lg font-semibold">Logs</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Raw records with composable filters and drill-down into a single occurrence.
-      </p>
-    </section>
-  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = parseLogFilters(searchParams)
+
+  function applyFilters(next: LogFilters) {
+    setSearchParams(filtersToSearchParams(next))
+  }
+
+  return <LogsView filters={filters} onFiltersChange={applyFilters} />
 }

@@ -8,6 +8,7 @@ import type {
   ImportJobStore,
   IngestionOutcome,
   IngestionProgress,
+  NewImportJob,
 } from '../ports/import-job-store'
 import type { LogRecordSink } from '../ports/log-record-sink'
 import type {
@@ -94,6 +95,10 @@ class RecordingImportJobStore implements ImportJobStore {
   running: { totalLines: number | null } | undefined
   completed: IngestionOutcome | undefined
   failed: string | undefined
+
+  async create(_job: NewImportJob): Promise<{ id: string }> {
+    return { id: 'job-1' }
+  }
 
   async markRunning(
     _importJobId: string,

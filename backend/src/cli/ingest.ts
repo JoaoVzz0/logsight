@@ -20,6 +20,7 @@ import type {
   ImportJobStore,
   IngestionOutcome,
   IngestionProgress,
+  NewImportJob,
 } from '../domains/ingestion/ports/import-job-store'
 import {
   PrismaIssueRepository,
@@ -71,6 +72,7 @@ async function runIngestion(
   const job = await prisma.importJob.create({
     data: {
       filename: basename(filePath),
+      storageKey: filePath,
       sizeBytes: BigInt(fileStats.size),
       ...(args.sourceType !== undefined ? { sourceType: args.sourceType } : {}),
     },
@@ -130,6 +132,10 @@ class ConsoleProgressReporter implements ImportJobStore {
     private readonly totalLines: number,
     private readonly batchSize: number,
   ) {}
+
+  create(job: NewImportJob): Promise<{ id: string }> {
+    return this.delegate.create(job)
+  }
 
   markRunning(importJobId: string, totalLines: number | null): Promise<void> {
     return this.delegate.markRunning(importJobId, totalLines)
