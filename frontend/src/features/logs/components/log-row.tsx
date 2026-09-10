@@ -4,7 +4,7 @@ import type { LogRecord } from '../../../shared/lib/api-client'
 import {
   formatAbsoluteTime,
   formatRelativeTime,
-} from '../model/relative-time'
+} from '../../../shared/lib/relative-time'
 
 import { SeverityBand, SeverityTag } from './severity-tag'
 
