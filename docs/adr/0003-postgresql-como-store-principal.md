@@ -36,9 +36,16 @@ variável específica de cada origem.
   Nunca é consultado por chave, então não recebe índice e não precisa de JSONB
 - **BRIN** em `timestamp` — o dado é append-only e naturalmente ordenado por
   tempo, então o índice fica ordens de grandeza menor que um B-tree
-  equivalente
+  equivalente. Resolve varredura por janela de tempo; não entrega linhas em
+  ordem
 - **índice composto** `(service_name, severity_number, timestamp DESC)` para
   o caminho de consulta mais comum da tabela
+- **B-tree** `(timestamp DESC, id DESC)` para a paginação por keyset da tela
+  de logs. A página "mais recentes primeiro" sem filtro, e cada página
+  seguinte por cursor, precisam de um índice que sirva a ordenação do keyset
+  diretamente — o BRIN não faz isso e o composto acima exige igualdade em
+  `service_name`/`severity_number` no prefixo. BRIN e B-tree coexistem: um
+  para range analítico, o outro para a ordenação do keyset (ADR 0009)
 - **`pg_trgm`** (ou `tsvector`, conforme medição) para busca textual em `body`
 
 **Redis** entra como segundo store, mas por necessidade arquitetural — fila

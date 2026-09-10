@@ -52,10 +52,28 @@ a violation of ADR 0009 and of this rule. See `@.claude/rules/architecture.md`
 
 ## Volume queries paginate by keyset cursor
 
-Pagination over a large table uses a composite keyset cursor `(timestamp, id)`
-with `cursor` + `take`. `OFFSET` is never used for volume pagination — its
-cost grows with the offset because the database still scans and discards the
-skipped rows. See `@.claude/rules/frontend.md` ("Table") for the cursor shape.
+Pagination over a large table uses a composite keyset cursor `(timestamp, id)`:
+the next page is a `WHERE` comparison against the cursor, ordered by
+`timestamp DESC, id DESC`, with `take`. The predicate is built from the Prisma
+query builder's operators, not the `cursor` argument — that argument compiles
+to correlated subqueries and a sequential scan.
+
+A **depth-scaling** `OFFSET` — one that grows as the caller pages deeper — is
+never used: its cost grows with the offset because the database still scans and
+discards the skipped rows. The fixed `OFFSET 0` that Prisma's `findMany` always
+appends to the SQL is not that offset and is not a violation; the keyset
+`WHERE` is what advances the page.
+
+The predicate is written in the sargable form
+`timestamp <= :ts AND (timestamp < :ts OR id < :id)` so the timestamp bound is
+an index range condition, not a filter applied from the top of the table. The
+`EXPLAIN ANALYZE` check for a deep cursor must show an `Index Cond` on
+`timestamp` — not `Rows Removed by Filter` in the thousands. This access path
+has its own `(timestamp DESC, id DESC)` B-tree (ADR 0003); the BRIN index on
+`timestamp` cannot serve an ordered scan.
+
+See `@.claude/rules/frontend.md` ("Table") for the cursor shape and ADR 0009
+for the query shape.
 
 ## Indexes follow the access pattern and are verified
 

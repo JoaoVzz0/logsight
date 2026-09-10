@@ -32,9 +32,32 @@ await prisma.issue.upsert({
 })
 ```
 
-Também: `createMany` na inserção em lote da ingestão, e `cursor` + `take` na
-paginação por keyset da tabela de logs. Nesses casos o nativo é mais legível
-que SQL escrito à mão e igualmente eficiente.
+Também: `createMany` na inserção em lote da ingestão, e a paginação por keyset
+da tabela de logs. Nesses casos o nativo é mais legível que SQL escrito à mão e
+igualmente eficiente.
+
+O keyset **não** usa o argumento `cursor` do Prisma: ele compila para
+subconsultas correlacionadas e uma varredura sequencial. Usa o comparador
+composto montado com os operadores do query builder, na forma sargável que
+mantém o limite de `timestamp` como range do índice:
+
+```ts
+await prisma.logRecord.findMany({
+  where: {
+    AND: [
+      { timestamp: { lte: cursorTs } },
+      { OR: [{ timestamp: { lt: cursorTs } }, { id: { lt: cursorId } }] },
+    ],
+  },
+  orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+  take: pageSize + 1,
+})
+```
+
+O `OFFSET 0` fixo que o `findMany` do Prisma sempre anexa ao SQL não é o
+`OFFSET` que a regra de performance proíbe — aquele cresce com a profundidade
+da página; este é constante e o `WHERE` do keyset é o que avança. Ver
+`@.claude/rules/performance.md`.
 
 ### `$queryRaw` — a exceção, restrita a `analytics`
 

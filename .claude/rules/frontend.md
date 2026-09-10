@@ -77,6 +77,27 @@ Total log count is not displayed as a headline metric. It is the vanity
 metric ADR 0005 rejects, and showing it would contradict the decision the
 product is built on.
 
+## Responsiveness
+
+Responsive, desktop-first — not mobile-first. This is a dense observability
+tool: a log table with many columns in a monospaced font. Datadog, Sentry and
+Grafana are built the same way — designed for the desktop and degraded
+gracefully for narrower screens. A mobile-first approach would sacrifice the
+density that is the core of the product.
+
+Uses the standard Tailwind breakpoints. Every screen meets these rules:
+
+- No screen breaks its layout or produces unintended horizontal scroll below
+  `640px`.
+- Navigation collapses into a usable form on a narrow screen.
+- The log table scrolls horizontally under control inside its own container
+  on narrow screens, without pushing the rest of the page. Severity, time and
+  message stay visible.
+- Dashboard cards go from multiple columns to a single column below the
+  breakpoint.
+- Filters and controls stay clickable on a small screen — adequate touch
+  targets.
+
 ## Accessibility
 
 - Virtualized list declares `role="grid"` with a real `aria-rowcount`, and
