@@ -3,6 +3,8 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import type { LogRecord } from '../core/log-record'
 import type { LogRecordSink } from '../ports/log-record-sink'
 
+type RecordWriter = Pick<PrismaClient, 'logRecord'>
+
 export class PrismaLogRecordSink implements LogRecordSink {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -10,14 +12,22 @@ export class PrismaLogRecordSink implements LogRecordSink {
     importJobId: string,
     records: readonly LogRecord[],
   ): Promise<void> {
-    if (records.length === 0) {
-      return
-    }
-
-    await this.prisma.logRecord.createMany({
-      data: records.map((record) => toCreateManyInput(importJobId, record)),
-    })
+    await insertLogRecords(this.prisma, importJobId, records)
   }
+}
+
+export async function insertLogRecords(
+  db: RecordWriter,
+  importJobId: string,
+  records: readonly LogRecord[],
+): Promise<void> {
+  if (records.length === 0) {
+    return
+  }
+
+  await db.logRecord.createMany({
+    data: records.map((record) => toCreateManyInput(importJobId, record)),
+  })
 }
 
 function toCreateManyInput(

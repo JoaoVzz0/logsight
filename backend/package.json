@@ -10,7 +10,9 @@
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
-    "openapi:dump": "tsx src/http/openapi-dump.ts"
+    "openapi:dump": "tsx src/http/openapi-dump.ts",
+    "generate:logs": "tsx src/scripts/generate-logs.ts",
+    "ingest": "tsx --env-file-if-exists=../.env src/cli/ingest.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.0.0",
