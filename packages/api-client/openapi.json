@@ -162,6 +162,159 @@
           "nextCursor"
         ],
         "additionalProperties": false
+      },
+      "CreateImportResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "ImportStatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "sourceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalLines": {
+            "type": "integer",
+            "nullable": true
+          },
+          "processedLines": {
+            "type": "integer"
+          },
+          "parseErrors": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "ingestedRecords": {
+                "type": "integer"
+              },
+              "elapsedMs": {
+                "type": "integer"
+              },
+              "linesPerSecond": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "ingestedRecords",
+              "elapsedMs",
+              "linesPerSecond"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "status",
+          "sourceType",
+          "totalLines",
+          "processedLines",
+          "parseErrors",
+          "createdAt",
+          "finishedAt",
+          "error",
+          "result"
+        ],
+        "additionalProperties": false
+      },
+      "ImportListResponse": {
+        "type": "object",
+        "properties": {
+          "imports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "filename": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "totalLines": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "processedLines": {
+                  "type": "integer"
+                },
+                "parseErrors": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "filename",
+                "status",
+                "createdAt",
+                "totalLines",
+                "processedLines",
+                "parseErrors"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "imports"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -273,6 +426,63 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LogListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imports": {
+      "post": {
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateImportResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imports/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportStatusResponse"
                 }
               }
             }

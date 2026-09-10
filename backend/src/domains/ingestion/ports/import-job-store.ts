@@ -11,7 +11,17 @@ export type IngestionOutcome = {
   readonly elapsedMs: number
 }
 
+export type NewImportJob = {
+  readonly filename: string
+  readonly storageKey: string
+  readonly sizeBytes: number
+  readonly totalLines: number
+  readonly sourceType: string | null
+}
+
 export interface ImportJobStore {
+  create(job: NewImportJob): Promise<{ id: string }>
+
   markRunning(importJobId: string, totalLines: number | null): Promise<void>
 
   reportProgress(

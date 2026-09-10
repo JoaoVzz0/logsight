@@ -1,5 +1,4 @@
-import { DomainError } from '../../../shared/errors/domain-error'
-
+import { UnknownSourceTypeError } from '../core/errors'
 import { selectAdapter } from '../core/services/adapter-selection'
 import type { LogSourceAdapter } from '../ports/log-source-adapter'
 
@@ -7,13 +6,7 @@ import { createAwsCloudWatchAdapter } from './adapters/aws-cloudwatch'
 import { gcpCloudLoggingAdapter } from './adapters/gcp-cloud-logging'
 import { createJsonLinesAdapter } from './adapters/json-lines-adapter'
 
-export class UnknownSourceTypeError extends DomainError {
-  readonly code = 'unknown-source-type'
-
-  constructor(readonly sourceType: string) {
-    super(`unknown source type: ${sourceType}`)
-  }
-}
+export { UnknownSourceTypeError }
 
 const wallClock = (): Date => new Date()
 
@@ -27,6 +20,10 @@ export const registeredAdapters: readonly LogSourceAdapter[] = [
 
 export const fallbackAdapter: LogSourceAdapter = jsonLinesAdapter
 
+export const registeredSourceTypes: readonly string[] = registeredAdapters.map(
+  (adapter) => adapter.sourceType,
+)
+
 export function resolveAdapter(
   sample: string[],
   sourceType?: string,
@@ -39,7 +36,7 @@ export function resolveAdapter(
     (adapter) => adapter.sourceType === sourceType,
   )
   if (named === undefined) {
-    throw new UnknownSourceTypeError(sourceType)
+    throw new UnknownSourceTypeError(sourceType, registeredSourceTypes)
   }
 
   return named

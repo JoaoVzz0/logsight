@@ -47,6 +47,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreateImportResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -84,6 +175,45 @@ export interface components {
         LogListResponse: {
             records: components["schemas"]["LogRecord"][];
             nextCursor: string | null;
+        };
+        CreateImportResponse: {
+            /** Format: uuid */
+            id: string;
+        };
+        ImportStatusResponse: {
+            /** Format: uuid */
+            id: string;
+            filename: string;
+            /** @enum {string} */
+            status: "pending" | "running" | "completed" | "failed";
+            sourceType: string | null;
+            totalLines: number | null;
+            processedLines: number;
+            parseErrors: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+            error: string | null;
+            result: {
+                ingestedRecords: number;
+                elapsedMs: number;
+                linesPerSecond: number;
+            } | null;
+        };
+        ImportListResponse: {
+            imports: {
+                /** Format: uuid */
+                id: string;
+                filename: string;
+                /** @enum {string} */
+                status: "pending" | "running" | "completed" | "failed";
+                /** Format: date-time */
+                createdAt: string;
+                totalLines: number | null;
+                processedLines: number;
+                parseErrors: number;
+            }[];
         };
     };
     responses: never;

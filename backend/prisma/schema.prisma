@@ -63,12 +63,14 @@ enum IssueStatus {
 model ImportJob {
   id             String    @id @default(uuid()) @db.Uuid
   filename       String
+  storageKey     String    @map("storage_key")
   sizeBytes      BigInt    @map("size_bytes")
   sourceType     String?   @map("source_type")
   status         JobStatus @default(PENDING)
   totalLines     Int?      @map("total_lines")
   processedLines Int       @default(0) @map("processed_lines")
   parseErrors    Int       @default(0) @map("parse_errors")
+  elapsedMs      Int?      @map("elapsed_ms")
   error          String?
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   finishedAt     DateTime? @map("finished_at") @db.Timestamptz(3)

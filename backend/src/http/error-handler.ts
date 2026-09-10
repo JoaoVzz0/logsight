@@ -5,6 +5,11 @@ import { DomainError } from '../shared/errors/domain-error'
 
 const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   'invalid-cursor': 400,
+  'unknown-source-type': 400,
+  'missing-upload-file': 400,
+  'empty-upload-file': 400,
+  'upload-too-large': 413,
+  'import-job-not-found': 404,
 }
 
 export type ErrorResponse = {

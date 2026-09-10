@@ -25,7 +25,7 @@ afterAll(async () => {
 
 async function seed(rows: readonly SeedRow[]): Promise<void> {
   const job = await prisma.importJob.create({
-    data: { filename: 'seed', sizeBytes: 1n },
+    data: { filename: 'seed', storageKey: 'seed', sizeBytes: 1n },
   })
   await prisma.issue.create({
     data: {
