@@ -39,7 +39,7 @@ model LogRecord {
 model Issue {
   fingerprint      String      @id
   sampleMessage    String      @map("sample_message")
-  severityNumber   Int         @map("severity_number")
+  severityNumber   Int?        @map("severity_number")
   firstSeen        DateTime    @map("first_seen") @db.Timestamptz(3)
   lastSeen         DateTime    @map("last_seen") @db.Timestamptz(3)
   eventCount       BigInt      @default(0) @map("event_count")
