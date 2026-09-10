@@ -3,10 +3,89 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    level?: ("unknown" | number) | ("unknown" | number)[];
+                    from?: string;
+                    to?: string;
+                    service?: string;
+                    q?: string;
+                    limit?: number;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LogListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        LogListQuery: {
+            level?: ("unknown" | number) | ("unknown" | number)[];
+            /** Format: date-time */
+            from?: string;
+            /** Format: date-time */
+            to?: string;
+            service?: string;
+            q?: string;
+            /** @default 50 */
+            limit: number;
+            cursor?: string;
+        };
+        LogRecord: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            timestamp: string;
+            /** Format: date-time */
+            observedAt: string;
+            severityNumber: number | null;
+            severityText: string | null;
+            body: string;
+            serviceName: string | null;
+            host: string | null;
+            environment: string | null;
+            traceId: string | null;
+            spanId: string | null;
+            sourceType: string;
+            fingerprint: string;
+        };
+        LogListResponse: {
+            records: components["schemas"]["LogRecord"][];
+            nextCursor: string | null;
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;

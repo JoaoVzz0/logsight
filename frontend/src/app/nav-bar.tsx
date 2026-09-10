@@ -10,9 +10,9 @@ const LINKS: readonly { to: string; label: string }[] = [
 
 export function NavBar() {
   return (
-    <header className="flex items-center gap-5 border-b border-border bg-surface-raised px-4 py-3">
+    <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-surface-raised px-4 py-3">
       <span className="font-semibold">logsight</span>
-      <nav className="flex items-center gap-5">
+      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {LINKS.map((link) => (
           <NavLink
             key={link.to}
