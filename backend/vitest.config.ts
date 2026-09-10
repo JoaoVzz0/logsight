@@ -6,5 +6,6 @@ const databaseUrl =
 export default defineConfig({
   test: {
     env: { DATABASE_URL: databaseUrl },
+    fileParallelism: false,
   },
 })

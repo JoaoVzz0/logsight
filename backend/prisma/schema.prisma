@@ -33,6 +33,7 @@ model LogRecord {
 
   @@index([serviceName, severityNumber, timestamp(sort: Desc)])
   @@index([fingerprint, timestamp(sort: Desc)])
+  @@index([timestamp(sort: Desc), id(sort: Desc)])
   @@map("log_records")
 }
 
