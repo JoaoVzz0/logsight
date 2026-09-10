@@ -120,18 +120,6 @@ item is still unchecked, the feature is not done.
 checked.
 
 ---
-
-## Commit
-
-One commit per completed gate sequence, in `type: description` format,
-English, imperative mood. The commit body notes any ADR or rule the change
-touches.
-
-Do not batch unrelated changes into one commit — the history is part of the
-deliverable.
-
----
-
 ## When a gate cannot be satisfied
 
 Say so and stop. Three legitimate outcomes:
