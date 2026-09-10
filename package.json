@@ -9,7 +9,8 @@
     "test:e2e": "pnpm --filter frontend test:e2e",
     "check": "tsc --build --noEmit && eslint .",
     "generate:client": "pnpm --filter backend openapi:dump && openapi-typescript packages/api-client/openapi.json --output packages/api-client/src/index.ts",
-    "generate:logs": "pnpm --filter backend generate:logs"
+    "generate:logs": "pnpm --filter backend generate:logs",
+    "ingest": "pnpm --filter backend ingest"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.0.0",

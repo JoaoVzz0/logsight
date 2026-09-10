@@ -31,6 +31,10 @@ export type IngestLogFileDependencies = {
   readonly now: () => number
   readonly batchSize?: number
   readonly sampleSize?: number
+  readonly persistBatch?: (
+    importJobId: string,
+    records: readonly LogRecord[],
+  ) => Promise<void>
 }
 
 type RunTotals = {
@@ -83,8 +87,12 @@ async function consumeStream(
     if (batch.length === 0) {
       return
     }
-    await deps.issueRepository.upsertBatch(batch.map(toOccurrence))
-    await deps.recordSink.insertBatch(request.importJobId, batch)
+    if (deps.persistBatch !== undefined) {
+      await deps.persistBatch(request.importJobId, batch)
+    } else {
+      await deps.issueRepository.upsertBatch(batch.map(toOccurrence))
+      await deps.recordSink.insertBatch(request.importJobId, batch)
+    }
     totals.ingestedRecords += batch.length
     await deps.importJobStore.reportProgress(request.importJobId, {
       processedLines: totals.processedLines,
@@ -112,7 +120,7 @@ async function consumeStream(
   return totals
 }
 
-function toOccurrence(record: LogRecord): Occurrence {
+export function toOccurrence(record: LogRecord): Occurrence {
   return {
     fingerprint: record.fingerprint,
     message: record.body,

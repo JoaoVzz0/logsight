@@ -24,6 +24,7 @@ conversation, not a commit.
 - `@.claude/rules/code-style.md` — naming, errors, comments, reuse
 - `@.claude/rules/testing.md` — what to test, how, fixture conventions
 - `@.claude/rules/frontend.md` — components, state, visual tokens
+- `@.claude/rules/performance.md` — batching, in-memory aggregation, keyset pagination, indexes
 
 ## Non-negotiable
 

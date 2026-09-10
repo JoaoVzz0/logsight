@@ -35,6 +35,9 @@ uploads/
 
 # Logs
 *.log
+
+# Synthetic log samples (pnpm generate:logs default output)
+big-sample.*
 npm-debug.log*
 pnpm-debug.log*
 yarn-error.log*

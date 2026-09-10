@@ -1,5 +1,6 @@
 import { once } from 'node:events'
 import { createWriteStream } from 'node:fs'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
@@ -321,10 +322,11 @@ function readOptions(argv: string[]): GenerateOptions {
   })
 
   const format = parseFormat(values.format)
+  const out = values.out ?? `big-sample.${EXTENSION_BY_FORMAT[format]}`
   return {
     lines: parseLines(values.lines),
     format,
-    out: values.out ?? `big-sample.${EXTENSION_BY_FORMAT[format]}`,
+    out: resolve(process.env.INIT_CWD ?? process.cwd(), out),
   }
 }
 

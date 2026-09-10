@@ -60,6 +60,32 @@ API container:
 docker compose exec api node dist/scripts/generate-logs.js --lines 1000000 --format gcp
 ```
 
+## Ingesting a file
+
+Run the ingestion pipeline over a log file from the command line:
+
+```bash
+pnpm ingest big-sample.jsonl [--source-type gcp-cloud-logging] [--batch-size 5000]
+```
+
+- `--source-type` overrides adapter detection; omit it to let the registry
+  detect the format from the first lines.
+- `--batch-size` sets how many records are persisted per chunk (default
+  `5000`); it determines how many chunks a file is split into.
+- Creates an `ImportJob`, streams the file through the same `ingestLogFile`
+  pipeline the HTTP upload uses.
+- Reports progress to stderr as it runs — file size, line count, chunk count,
+  then `chunk N/~M · processed/total lines (%) · parse errors` every few
+  percent — and prints a final summary (records, parse errors, chunks,
+  elapsed, lines per second) to stdout.
+- Exits non-zero if the job ends in `failed`.
+- Needs `DATABASE_URL` (loaded from `.env` locally, already set in the
+  compose environment). Inside the containers:
+
+```bash
+docker compose exec api node dist/cli/ingest.js /app/big-sample.jsonl
+```
+
 ## Documentation
 
 - `docs/adr/` — architectural decisions, with the alternatives considered
