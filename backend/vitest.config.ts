@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config'
 
 const databaseUrl =
-  process.env.DATABASE_URL ?? 'postgresql://logs:logs@localhost:5432/logs'
+  process.env.DATABASE_URL ?? 'postgresql://logs:logs@localhost:5435/logs'
 
 export default defineConfig({
   test: {
