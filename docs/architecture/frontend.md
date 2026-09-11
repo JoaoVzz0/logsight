@@ -12,7 +12,7 @@ frontend/src/
 ├─ features/
 │  ├─ analytics/   dashboard: cards, hooks, páginas
 │  ├─ imports/     upload, progresso, histórico
-│  ├─ issues/      apenas a página, sem dados (ver abaixo)
+│  ├─ issues/      apenas a página, placeholder (ver abaixo)
 │  └─ logs/        tabela virtualizada, filtros, busca
 └─ shared/
    ├─ ui/           componentes shadcn e os design tokens (tokens.css)
@@ -26,11 +26,12 @@ Zod de cada tela ficam no `model/` da própria feature (por exemplo
 `features/logs/model/filters.ts`, `features/analytics/model/time-range.ts`),
 não em um módulo compartilhado.
 
-A feature `issues/` só tem `pages/issues-page.tsx`, com texto estático e
-nenhuma busca de dados; suas pastas `api/`, `components/` e `hooks/` têm
-apenas um `.gitkeep`. A rota `/issues` existe no roteador, mas a tela
-descrita no ADR 0010 (lista de issues agrupados, com detalhe por
-fingerprint) ainda não está implementada.
+A feature `issues/` só tem `pages/issues-page.tsx`, um placeholder que
+direciona o usuário ao dashboard; suas pastas `api/`, `components/` e
+`hooks/` têm apenas um `.gitkeep`. A rota `/issues` existe no roteador, mas a
+tela dedicada descrita no ADR 0010 (lista de issues agrupados, com detalhe
+por fingerprint) ainda não está implementada, e o agrupamento em si já
+funciona e aparece no dashboard.
 
 ## Roteamento
 
@@ -40,7 +41,7 @@ dinâmicos):
 
 ```
 /         DashboardPage   (features/analytics/pages/dashboard-page.tsx)
-/issues   IssuesPage      (features/issues/pages/issues-page.tsx, stub)
+/issues   IssuesPage      (features/issues/pages/issues-page.tsx, placeholder)
 /logs     LogsPage        (features/logs/pages/logs-page.tsx)
 /imports  ImportsPage     (features/imports/pages/imports-page.tsx)
 ```
@@ -110,8 +111,11 @@ API, e paginação por scroll infinito.
 (`ImportProgress`), e histórico de importações (`ImportHistory`), sempre
 visível.
 
-**Issues** (`/issues`, `issues-page.tsx`): texto estático, sem dados. Ver
-nota acima.
+**Issues** (`/issues`, `issues-page.tsx`): uma tela de placeholder que
+aponta para o dashboard, onde o agrupamento por fingerprint já aparece nos
+cards de novos issues, top issues e picos. A tela dedicada de navegação
+issue a issue é uma evolução, descrita como tal no processo de
+desenvolvimento.
 
 ## Tabela virtualizada e cursor
 

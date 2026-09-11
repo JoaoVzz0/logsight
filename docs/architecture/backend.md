@@ -120,10 +120,13 @@ const domainBoundary = {
 
 A consequência aceita é que os tipos de domínio não são os tipos gerados
 pelo Prisma. A conversão entre a linha persistida e a entidade acontece na
-implementação do repositório, dentro de `infra/`. Esse é o único mapper do
-projeto: a função `toSnapshot()` em
+implementação do repositório, dentro de `infra/`. O mapper do agregado é a
+função `toSnapshot()` em
 `backend/src/domains/issues/infra/prisma-issue-repository.ts`, que traduz a
 linha `Issue` do Prisma em um `IssueSnapshot` consumido por `Issue.restore()`.
+É a conversão que mais importa, porque é a que protege o agregado de conhecer
+o Prisma; as outras conversões entre linha e resposta acontecem nas projeções
+de leitura, que por serem só leitura não passam pelo domínio.
 
 ## DDD tático seletivo
 
@@ -222,7 +225,7 @@ uma única implementação, `InProcessJobQueue`
 handler no mesmo processo que recebeu o upload, sem bloquear a resposta.
 Não há `import` de `bullmq` ou `ioredis` em nenhum arquivo de
 `backend/src` (as duas únicas ocorrências desses nomes no código são a
-própria regra de fronteira do ESLint e a string que a testa) — BullMQ e
+própria regra de fronteira do ESLint e a string que a testa): BullMQ e
 Redis foram avaliados e descontinuados por escopo, não estão presentes no
 projeto.
 
@@ -239,7 +242,6 @@ fila real não exigiria mudar `application/` nem `core/`.
   modular e do núcleo hexagonal.
 - [ADR 0009](../adr/0009-data-access.md), o porquê de Prisma como padrão
   e SQL bruto restrito a `analytics/`.
-- [ADR 0006](../adr/0006-asynchronous-ingestion.md), o desenho original da
-  ingestão assíncrona (não é o que está implementado hoje; ver "Fila de
-  jobs" acima).
+- [ADR 0006](../adr/0006-asynchronous-ingestion.md), o porquê da ingestão
+  in-process atrás da porta `JobQueue`.
 - [testing-strategy.md](../testing-strategy.md), como cada camada é testada.
