@@ -59,7 +59,7 @@ Violating any of these is a bug, not a preference:
 ## Commands
 
 ```bash
-pnpm dev            # api + worker + web
+pnpm dev            # api + web
 pnpm test           # vitest
 pnpm test:e2e       # playwright
 pnpm check          # tsc --strict && eslint

@@ -60,10 +60,10 @@ telas: lista de logs, dashboard, histórico de importação
 Cada etapa está descrita com nomes de arquivo reais em
 [backend.md](backend.md#o-fluxo-de-ingestão-de-ponta-a-ponta).
 
-Um ponto de atenção: o ADR 0006 descreve esse fluxo rodando sobre BullMQ e
-Redis, com um worker separado. O código atual implementa a porta `JobQueue`
-com um único adaptador em processo (`InProcessJobQueue`); não há worker
-separado nem fila externa. Os detalhes e o porquê da divergência estão em
+Um ponto de atenção: a ingestão roda **in-process**, atrás da porta
+`JobQueue` com um único adaptador (`InProcessJobQueue`); não há worker
+separado nem fila externa (ADR 0006). BullMQ e Redis foram avaliados e
+descontinuados por escopo. Os detalhes estão em
 [backend.md](backend.md#fila-de-jobs-o-que-está-implementado).
 
 ## Leitura versus escrita
@@ -83,9 +83,9 @@ deliberada; ver ADR 0008 e ADR 0009 para o porquê.
 - [testing-strategy.md](../testing-strategy.md), o que é testado e onde.
 - [docs/adr/](../adr/), as decisões arquiteturais e as alternativas
   descartadas. Relevantes para esta visão geral:
-  [ADR 0001](../adr/0001-stack-da-aplicacao.md) (stack),
-  [ADR 0008](../adr/0008-arquitetura-de-dominio.md) (monólito modular e
-  núcleo hexagonal), [ADR 0009](../adr/0009-acesso-a-dados.md) (acesso a
-  dados), [ADR 0012](../adr/0012-contrato-de-api.md) (contrato de API).
+  [ADR 0001](../adr/0001-application-stack.md) (stack),
+  [ADR 0008](../adr/0008-domain-architecture.md) (monólito modular e
+  núcleo hexagonal), [ADR 0009](../adr/0009-data-access.md) (acesso a
+  dados), [ADR 0012](../adr/0012-api-contract.md) (contrato de API).
 - [docs/development-process.md](../development-process.md), como o trabalho
   foi conduzido.

@@ -176,11 +176,11 @@ serviço digitado, não na grade em si.
 ## Documentação relacionada
 
 - [overview.md](overview.md), como o frontend se conecta ao backend.
-- [ADR 0010](../adr/0010-arquitetura-de-frontend.md), o porquê da
+- [ADR 0010](../adr/0010-frontend-architecture.md), o porquê da
   arquitetura de estado e da tabela virtualizada.
-- [ADR 0011](../adr/0011-legibilidade-e-acessibilidade.md), o porquê da
+- [ADR 0011](../adr/0011-readability-and-accessibility.md), o porquê da
   tokenização visual e das decisões de acessibilidade.
-- [ADR 0012](../adr/0012-contrato-de-api.md), o porquê do cliente gerado a
+- [ADR 0012](../adr/0012-api-contract.md), o porquê do cliente gerado a
   partir do OpenAPI.
 - [testing-strategy.md](../testing-strategy.md), o que é testado no
   frontend e o que não é.

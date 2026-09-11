@@ -16,9 +16,11 @@ normalization and grouping pipeline, the analytical queries with their
 indexing strategy, and the high-volume frontend. The framework choice
 should minimize time spent outside these three.
 
-A second factor weighs equally: import processing runs in a **separate
-worker** (ADR 0006), not in an HTTP request. The domain needs to be
-consumable by both processes without bootstrap ceremony.
+A second factor weighs equally: import processing runs **in-process,
+fire-and-forget** (ADR 0006), outside the request/response cycle, and the
+same domain functions are also invoked directly by a CLI entry point
+(`pnpm ingest`) with no HTTP server at all. The domain needs to be
+consumable from both without bootstrap ceremony.
 
 ## Decision
 
@@ -33,8 +35,9 @@ TypeScript on both ends:
   the single source, and the frontend consumes a client generated from it
   (see ADR 0012).
 
-The worker is a plain Node process that imports the same domain functions,
-without instantiating an HTTP server or a dependency injection container.
+The CLI entry point is a plain Node process that imports the same domain
+functions, without instantiating an HTTP server or a dependency injection
+container.
 
 ## Alternatives considered
 
@@ -42,7 +45,7 @@ without instantiating an HTTP server or a dependency injection container.
 
 This was the initial choice and it was reverted. In favor: project
 structure already decided, exception filters and validation pipe covering
-two evaluation criteria, first-class integration with BullMQ.
+two evaluation criteria.
 
 Discarded for three reasons.
 
@@ -57,11 +60,11 @@ pattern. Since "architecture" and "project organization" are explicit
 evaluation criteria, a deliberately chosen structure communicates more
 (see ADR 0008).
 
-**The worker would end up coupled to the DI container.** Running processing
-outside a request would require `NestFactory.createApplicationContext()`.
-With Fastify, the domain is plain TypeScript and the worker just imports
-it — which is also the architectural decision of ADR 0008, not just
-convenience.
+**The CLI entry point would end up coupled to the DI container.** Running
+the domain outside a request would require
+`NestFactory.createApplicationContext()`. With Fastify, the domain is
+plain TypeScript and the CLI just imports it — which is also the
+architectural decision of ADR 0008, not just convenience.
 
 What is lost by leaving NestJS out — validation, error handling and
 automatic documentation — is recovered with Zod, a global
@@ -96,8 +99,8 @@ avoids a justification that would not hold up under scrutiny.
 ## Consequences
 
 **Positive**
-- The domain is free of framework, and the worker consumes it without
-  bootstrap.
+- The domain is free of framework, and the CLI entry point consumes it
+  without bootstrap.
 - A single Zod schema serves as validation, backend type, frontend type
   and OpenAPI documentation.
 - The project structure is an explicit, defensible decision (ADR 0008).

@@ -61,7 +61,7 @@ implementations. Current ports and their implementations:
 | Port | Implementations |
 |---|---|
 | `LogSourceAdapter` | GCP, CloudWatch, JSON Lines, nginx |
-| `JobQueue` | BullMQ now, Pub/Sub as the documented evolution |
+| `JobQueue` | In-process now, a real broker as the documented evolution |
 | `FileStorage` | local filesystem, GCS signed URL |
 | `IssueRepository` | PostgreSQL, in-memory for tests |
 

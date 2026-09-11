@@ -51,9 +51,9 @@ specific to each origin.
 - **`pg_trgm`** (or `tsvector`, depending on measurement) for text search
   over `body`
 
-**Redis** enters as a second store, but out of architectural necessity —
-ingestion queue and aggregation cache — not to check a "use NoSQL" box.
-See ADR 0006.
+**No second store.** Redis was evaluated for the ingestion queue and for
+an aggregation cache, but descoped along with BullMQ — see ADR 0006.
+PostgreSQL is the only store in the current architecture.
 
 ## Alternatives considered
 
