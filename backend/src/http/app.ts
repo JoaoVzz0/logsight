@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 
+import fastifyCors from '@fastify/cors'
 import fastifyMultipart from '@fastify/multipart'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUi from '@fastify/swagger-ui'
@@ -55,6 +56,8 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
   registerErrorHandler(app)
+
+  await app.register(fastifyCors, { origin: true })
 
   await app.register(fastifySwagger, {
     openapi: {
