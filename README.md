@@ -48,11 +48,10 @@ quem já sabe o que está procurando.
 | Dashboard com indicadores e gráficos | Um card por métrica na tela inicial, cada um com a própria consulta, carregamento e estado de erro. |
 | Tendências e distribuição | Taxa de erro ao longo do tempo, novos issues na janela, issues em pico (crescimento anômalo) e distribuição por serviço. |
 
-Uma coisa que vale ser direto: a tela dedicada de navegação issue a issue
-(`/issues`, com lista e detalhe por fingerprint) ainda não foi implementada.
-A rota existe com um placeholder que aponta para o dashboard, onde o
-agrupamento e as métricas derivadas dele já funcionam. O que falta é a tela
-de exploração issue por issue, e ela está descrita como evolução em
+Uma coisa que vale ser direta: a tela `/issues` tem hoje a lista de issues
+agrupados, com filtro por status e severidade, mas ainda não tem o detalhe
+por ocorrência (timeline, trace) nem as ações de resolver/ignorar pela UI.
+Isso está descrito como evolução em
 [docs/development-process.md](docs/development-process.md).
 
 ## Como rodar

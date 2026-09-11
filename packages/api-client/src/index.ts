@@ -47,6 +47,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    service?: string;
+                    severity?: ("unknown" | number) | ("unknown" | number)[];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analytics/error-rate": {
         parameters: {
             query?: never;
@@ -366,6 +404,26 @@ export interface components {
         LogListResponse: {
             records: components["schemas"]["LogRecord"][];
             nextCursor: string | null;
+        };
+        IssueListQuery: {
+            service?: string;
+            severity?: ("unknown" | number) | ("unknown" | number)[];
+        };
+        IssueListResponse: {
+            issues: {
+                fingerprint: string;
+                sampleMessage: string;
+                severityNumber: number | null;
+                eventCount: number;
+                /** Format: date-time */
+                firstSeen: string;
+                /** Format: date-time */
+                lastSeen: string;
+                affectedServices: string[];
+                /** @enum {string} */
+                status: "unresolved" | "resolved" | "ignored";
+                regression: boolean;
+            }[];
         };
         CreateImportResponse: {
             /** Format: uuid */

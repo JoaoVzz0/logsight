@@ -47,6 +47,7 @@ model Issue {
   affectedServices String[]    @map("affected_services")
   status           IssueStatus @default(UNRESOLVED)
   resolvedAt       DateTime?   @map("resolved_at") @db.Timestamptz(3)
+  regression       Boolean     @default(false)
 
   records LogRecord[]
 
