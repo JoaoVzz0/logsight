@@ -12,6 +12,7 @@ export function NewIssuesCard({ range }: { readonly range: TimeRange }) {
       title="New issues"
       testId="new-issues-card"
       query={query}
+      fixedHeight
       isEmpty={(data) => data.issues.length === 0}
       emptyMessage="No new issues in this window."
     >

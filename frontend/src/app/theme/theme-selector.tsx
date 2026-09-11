@@ -1,3 +1,5 @@
+import { cn } from '../../shared/lib/cn'
+
 import { setThemePreference, useThemePreference, type ThemePreference } from './theme-store'
 
 const OPTIONS: readonly { value: ThemePreference; label: string }[] = [
@@ -13,7 +15,7 @@ export function ThemeSelector() {
     <div
       role="radiogroup"
       aria-label="Color theme"
-      className="inline-flex rounded-lg border border-border bg-surface-raised p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5"
     >
       {OPTIONS.map((option) => {
         const isSelected = option.value === preference
@@ -24,11 +26,12 @@ export function ThemeSelector() {
             role="radio"
             aria-checked={isSelected}
             onClick={() => setThemePreference(option.value)}
-            className={
+            className={cn(
+              'rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
               isSelected
-                ? 'rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground'
-                : 'rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground'
-            }
+                ? 'bg-card font-medium text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
           >
             {option.label}
           </button>

@@ -35,7 +35,7 @@ function LogRowComponent({
       tabIndex={focused ? 0 : -1}
       onFocus={() => onFocus(rowIndex)}
       style={{ height: ROW_HEIGHT, transform: `translateY(${offset}px)` }}
-      className={`absolute inset-x-0 items-center border-b border-border text-xs outline-offset-[-2px] focus:outline focus:outline-2 focus:outline-ring ${GRID_COLUMNS}`}
+      className={`absolute inset-x-0 items-center border-b border-border text-xs outline-offset-[-2px] transition-colors hover:bg-secondary/40 focus:outline focus:outline-2 focus:outline-ring ${GRID_COLUMNS}`}
     >
       <div
         role="gridcell"

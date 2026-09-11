@@ -1,11 +1,15 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 
+import { Checkbox } from '../../../shared/ui/checkbox'
+import { Input } from '../../../shared/ui/input'
 import {
   MIN_SEARCH_LENGTH,
   type LogFilters,
   type SeverityLevelFilter,
 } from '../model/filters'
 import type { SeverityKey } from '../model/severity'
+
+import { DateTimeField } from './date-time-field'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -23,8 +27,7 @@ const SEVERITY_OPTIONS: {
   { key: 'unknown', label: 'Unknown', values: ['unknown'] },
 ]
 
-const FIELD =
-  'h-8 rounded-md border border-border bg-surface-raised px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring'
+const FIELD = 'h-8 text-xs'
 
 type LogsFilterBarProps = {
   readonly filters: LogFilters
@@ -68,83 +71,97 @@ export function LogsFilterBar({ filters, onChange }: LogsFilterBarProps) {
     })
   }
 
-  function setBound(field: 'from' | 'to', localValue: string) {
-    const iso = localValue === '' ? null : new Date(localValue).toISOString()
+  function setBound(field: 'from' | 'to', iso: string | null) {
     onChange(
-      field === 'from'
-        ? { ...filters, from: iso }
-        : { ...filters, to: iso },
+      field === 'from' ? { ...filters, from: iso } : { ...filters, to: iso },
     )
   }
 
   return (
     <div
       data-testid="logs-filters"
-      className="flex flex-wrap items-center gap-2 pb-3"
+      className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border pb-4"
     >
-      <input
-        key={filters.q ?? ''}
-        data-testid="logs-search"
-        type="search"
-        aria-label="Search message"
-        defaultValue={filters.q ?? ''}
-        placeholder={`Search message (min ${MIN_SEARCH_LENGTH} chars)`}
-        onChange={(event) => onSearchInput(event.currentTarget.value)}
-        className={`${FIELD} w-64`}
-      />
-      <input
-        key={filters.service ?? ''}
-        data-testid="service-filter"
-        aria-label="Service"
-        defaultValue={filters.service ?? ''}
-        placeholder="Service"
-        onKeyDown={onServiceKeyDown}
-        onBlur={(event) => commitService(event.currentTarget.value)}
-        className={`${FIELD} w-40`}
-      />
-      <input
-        key={`from-${filters.from ?? ''}`}
-        data-testid="from-filter"
-        type="datetime-local"
-        aria-label="From"
-        defaultValue={toLocalInput(filters.from)}
-        onChange={(event) => setBound('from', event.currentTarget.value)}
-        className={FIELD}
-      />
-      <input
-        key={`to-${filters.to ?? ''}`}
-        data-testid="to-filter"
-        type="datetime-local"
-        aria-label="To"
-        defaultValue={toLocalInput(filters.to)}
-        onChange={(event) => setBound('to', event.currentTarget.value)}
-        className={FIELD}
-      />
-      <div data-testid="level-filter" className="flex flex-wrap items-center gap-2">
-        {SEVERITY_OPTIONS.map((option) => (
-          <label key={option.key} className="flex items-center gap-1 text-xs">
-            <input
-              type="checkbox"
-              checked={option.values.every((value) =>
-                filters.level.includes(value),
-              )}
-              onChange={(event) =>
-                toggleLevel(option.values, event.currentTarget.checked)
-              }
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
+      <Field label="Search">
+        <Input
+          key={filters.q ?? ''}
+          data-testid="logs-search"
+          type="search"
+          aria-label="Search message"
+          defaultValue={filters.q ?? ''}
+          placeholder={`Min ${MIN_SEARCH_LENGTH} characters`}
+          onChange={(event) => onSearchInput(event.currentTarget.value)}
+          className={`${FIELD} w-64`}
+        />
+      </Field>
+      <Field label="Service">
+        <Input
+          key={filters.service ?? ''}
+          data-testid="service-filter"
+          aria-label="Service"
+          defaultValue={filters.service ?? ''}
+          placeholder="Any service"
+          onKeyDown={onServiceKeyDown}
+          onBlur={(event) => commitService(event.currentTarget.value)}
+          className={`${FIELD} w-36`}
+        />
+      </Field>
+      <Field label="From">
+        <DateTimeField
+          testId="from-filter"
+          ariaLabel="From"
+          value={filters.from}
+          onChange={(iso) => setBound('from', iso)}
+        />
+      </Field>
+      <Field label="To">
+        <DateTimeField
+          testId="to-filter"
+          ariaLabel="To"
+          value={filters.to}
+          onChange={(iso) => setBound('to', iso)}
+        />
+      </Field>
+      <Field label="Severity">
+        <div
+          data-testid="level-filter"
+          className="flex h-8 flex-wrap items-center gap-x-3 gap-y-1.5"
+        >
+          {SEVERITY_OPTIONS.map((option) => (
+            <label
+              key={option.key}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Checkbox
+                checked={option.values.every((value) =>
+                  filters.level.includes(value),
+                )}
+                onCheckedChange={(checked) =>
+                  toggleLevel(option.values, checked === true)
+                }
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+      </Field>
     </div>
   )
 }
 
-function toLocalInput(iso: string | null): string {
-  if (iso === null) {
-    return ''
-  }
-  const date = new Date(iso)
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+function Field({
+  label,
+  children,
+}: {
+  readonly label: string
+  readonly children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">
+        {label}
+      </span>
+      {children}
+    </div>
+  )
 }

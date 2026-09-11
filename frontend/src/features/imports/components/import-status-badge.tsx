@@ -1,27 +1,34 @@
-import { cn } from '../../../shared/lib/cn'
+import { Badge, type BadgeProps } from '../../../shared/ui/badge'
 import type { ImportPhase } from '../model/progress'
 
 const CONFIG: Record<
   ImportPhase,
-  { readonly label: string; readonly icon: string; readonly className: string }
+  { readonly label: string; readonly variant: NonNullable<BadgeProps['variant']> }
 > = {
-  pending: { label: 'Queued', icon: '○', className: 'text-muted-foreground' },
-  running: { label: 'Processing', icon: '◐', className: 'text-severity-info' },
-  completed: { label: 'Completed', icon: '●', className: 'text-foreground' },
-  failed: { label: 'Failed', icon: '▲', className: 'text-severity-error' },
+  pending: { label: 'Queued', variant: 'outline' },
+  running: { label: 'Processing', variant: 'secondary' },
+  completed: { label: 'Completed', variant: 'success' },
+  failed: { label: 'Failed', variant: 'destructive' },
 }
 
 export function ImportStatusBadge({ status }: { readonly status: ImportPhase }) {
-  const { label, icon, className } = CONFIG[status]
+  const { label, variant } = CONFIG[status]
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 text-xs font-medium',
-        className,
-      )}
-    >
-      <span aria-hidden="true">{icon}</span>
+    <Badge variant={variant}>
+      <StatusDot status={status} />
       {label}
-    </span>
+    </Badge>
   )
+}
+
+function StatusDot({ status }: { readonly status: ImportPhase }) {
+  if (status === 'running') {
+    return (
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+      />
+    )
+  }
+  return <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
 }

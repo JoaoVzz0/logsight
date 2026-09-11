@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import type { UseQueryResult } from '@tanstack/react-query'
 
+import { cn } from '../../../shared/lib/cn'
 import { Button } from '../../../shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/ui/card'
 import { Skeleton } from '../../../shared/ui/skeleton'
@@ -13,15 +14,24 @@ type DashboardCardProps<T> = {
   readonly isEmpty: (data: T) => boolean
   readonly emptyMessage: string
   readonly children: (data: T) => ReactNode
+  readonly fixedHeight?: boolean
 }
 
 export function DashboardCard<T>(props: DashboardCardProps<T>) {
+  const { fixedHeight = false } = props
   return (
-    <Card data-testid={props.testId}>
-      <CardHeader>
+    <Card
+      data-testid={props.testId}
+      className={cn(fixedHeight && 'flex h-80 flex-col')}
+    >
+      <CardHeader className={cn(fixedHeight && 'shrink-0')}>
         <CardTitle>{props.title}</CardTitle>
       </CardHeader>
-      <CardContent>{renderBody(props)}</CardContent>
+      <CardContent
+        className={cn(fixedHeight && 'scroll-area min-h-0 flex-1 overflow-y-auto')}
+      >
+        {renderBody(props)}
+      </CardContent>
     </Card>
   )
 }

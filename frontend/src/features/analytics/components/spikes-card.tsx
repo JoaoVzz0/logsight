@@ -12,6 +12,7 @@ export function SpikesCard({ range }: { readonly range: TimeRange }) {
       title="Spikes"
       testId="spikes-card"
       query={query}
+      fixedHeight
       isEmpty={(data) => data.issues.length === 0}
       emptyMessage="No spikes in this window."
     >

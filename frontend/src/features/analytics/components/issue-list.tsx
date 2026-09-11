@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { IssueSummary } from '../../../shared/lib/api-client'
+import { formatEventCount } from '../model/format-event-count'
 
 type IssueListProps<T extends IssueSummary> = {
   readonly issues: readonly T[]
@@ -21,21 +22,28 @@ export function IssueList<T extends IssueSummary>({
         <li key={issue.fingerprint} data-testid={`${testId}-row`}>
           <Link
             to={issueHref(issue)}
-            className="flex flex-col gap-0.5 py-2 text-sm hover:bg-secondary"
+            className="flex items-start justify-between gap-3 py-2.5 text-sm hover:bg-secondary"
           >
-            <span
-              className="truncate font-mono text-xs text-foreground"
-              data-col="pattern"
-            >
-              {issue.sampleMessage}
-            </span>
-            <span className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="tabular" data-col="count">
-                {issue.eventCount} events
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span
+                className="truncate font-mono text-xs text-foreground"
+                data-col="pattern"
+              >
+                {issue.sampleMessage}
               </span>
-              <span data-col="service">{issue.services[0] ?? 'unknown'}</span>
+              <span className="text-xs text-muted-foreground" data-col="service">
+                {issue.services[0] ?? 'unknown'}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               {renderMeta?.(issue)}
-            </span>
+              <span
+                className="tabular text-sm font-semibold text-foreground"
+                data-col="count"
+              >
+                {formatEventCount(issue.eventCount)}
+              </span>
+            </div>
           </Link>
         </li>
       ))}

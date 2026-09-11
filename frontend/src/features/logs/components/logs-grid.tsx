@@ -61,7 +61,7 @@ export function LogsGrid({
       <div className="min-w-[46rem]">
         <div
           role="presentation"
-          className={`sticky top-0 z-10 h-8 items-center border-b border-border-strong bg-surface-raised text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${GRID_COLUMNS}`}
+          className={`sticky top-0 z-10 h-8 items-center border-b border-border-strong bg-surface-raised text-[11px] font-medium uppercase tracking-wide text-foreground/70 ${GRID_COLUMNS}`}
         >
           <div className="pl-3">Severity</div>
           <div>Time</div>

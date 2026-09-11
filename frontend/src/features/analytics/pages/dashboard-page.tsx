@@ -37,8 +37,9 @@ export function DashboardPage() {
         <TimeRangeSelector value={range.preset} onChange={applyPreset} />
       </header>
 
+      <ErrorRateCard range={range} />
+
       <DashboardGrid>
-        <ErrorRateCard range={range} />
         <NewIssuesCard range={range} />
         <TopIssuesCard range={range} />
         <SpikesCard range={range} />

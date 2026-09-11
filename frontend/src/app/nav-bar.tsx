@@ -1,4 +1,7 @@
 import { NavLink } from 'react-router-dom'
+
+import { cn } from '../shared/lib/cn'
+
 import { ThemeSelector } from './theme/theme-selector'
 
 const LINKS: readonly { to: string; label: string }[] = [
@@ -10,18 +13,23 @@ const LINKS: readonly { to: string; label: string }[] = [
 
 export function NavBar() {
   return (
-    <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border bg-surface-raised px-4 py-3">
-      <span className="font-semibold">logsight</span>
-      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-surface-raised px-6 py-3.5 shadow-sm">
+      <span className="text-sm font-semibold tracking-tight text-foreground">
+        logsight
+      </span>
+      <nav className="flex flex-wrap items-center gap-x-1 gap-y-1">
         {LINKS.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             end={link.to === '/'}
             className={({ isActive }) =>
-              isActive
-                ? 'border-b-2 border-foreground pb-0.5 text-sm font-medium text-foreground'
-                : 'border-b-2 border-transparent pb-0.5 text-sm text-muted-foreground hover:text-foreground'
+              cn(
+                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+              )
             }
           >
             {link.label}

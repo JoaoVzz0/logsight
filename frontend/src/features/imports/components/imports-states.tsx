@@ -1,28 +1,26 @@
 import { Button } from '../../../shared/ui/button'
+import { Card } from '../../../shared/ui/card'
 import { Skeleton } from '../../../shared/ui/skeleton'
-
-const PANEL =
-  'rounded-md border border-border bg-surface p-6 text-center text-sm'
 
 export function ImportHistoryError({ onRetry }: { readonly onRetry: () => void }) {
   return (
-    <div role="alert" className={PANEL}>
+    <Card role="alert" className="flex flex-col items-center gap-1 p-8 text-center text-sm">
       <p className="font-medium text-foreground">
         Could not load the import history
       </p>
-      <p className="mt-1 text-muted-foreground">
+      <p className="text-muted-foreground">
         The request to the import service failed.
       </p>
-      <Button variant="outline" size="sm" onClick={onRetry} className="mt-4">
+      <Button variant="outline" size="sm" onClick={onRetry} className="mt-3">
         Retry
       </Button>
-    </div>
+    </Card>
   )
 }
 
 export function ImportHistoryEmpty() {
   return (
-    <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+    <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
       No imports yet. Upload a file above to get started.
     </p>
   )
@@ -30,9 +28,9 @@ export function ImportHistoryEmpty() {
 
 export function ImportHistorySkeleton() {
   return (
-    <div
+    <Card
       aria-hidden="true"
-      className="overflow-hidden rounded-md border border-border"
+      className="overflow-hidden border-border/60 shadow-none"
     >
       {Array.from({ length: 4 }, (_unused, index) => (
         <div
@@ -44,6 +42,6 @@ export function ImportHistorySkeleton() {
           <Skeleton className="ml-auto h-3 w-24" />
         </div>
       ))}
-    </div>
+    </Card>
   )
 }

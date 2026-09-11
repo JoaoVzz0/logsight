@@ -11,6 +11,7 @@ export function ByServiceCard({ range }: { readonly range: TimeRange }) {
       title="By service"
       testId="by-service-card"
       query={query}
+      fixedHeight
       isEmpty={(data) => data.services.length === 0}
       emptyMessage="No events in this window."
     >

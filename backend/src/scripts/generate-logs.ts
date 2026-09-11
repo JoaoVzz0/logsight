@@ -40,7 +40,7 @@ const FORMATS: readonly Format[] = ['gcp', 'cloudwatch', 'json-lines']
 const DEFAULT_LINES = 100_000
 const DEFAULT_FORMAT: Format = 'json-lines'
 const SAMPLE_SEED = 0x5eed
-const WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+const WINDOW_MS = 48 * 60 * 60 * 1000
 const DEGENERATE_INTERVAL = 40
 
 const EXTENSION_BY_FORMAT: Readonly<Record<Format, string>> = {
