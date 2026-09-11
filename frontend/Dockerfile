@@ -6,6 +6,8 @@ COPY frontend/package.json frontend/
 COPY packages/api-client/package.json packages/api-client/
 RUN pnpm install --frozen-lockfile
 COPY . .
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm --filter frontend build
 
 FROM nginx:alpine
