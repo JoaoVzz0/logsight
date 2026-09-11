@@ -1,39 +1,40 @@
-# ADR 0010 — Arquitetura de frontend
+# ADR 0010 — Frontend architecture
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O frontend não é apresentação do backend: é o produto. O problema que a
-plataforma resolve — log bruto é desestruturado e difícil de ler — só se
-resolve na interface. "Experiência do usuário (UX/UI)" e "performance" são
-critérios explícitos de avaliação, e ambos se manifestam aqui.
+The frontend is not a presentation layer over the backend: it is the
+product. The problem the platform solves — raw logs are unstructured and
+hard to read — is only solved in the interface. "User experience (UX/UI)"
+and "performance" are explicit evaluation criteria, and both show up here.
 
-Duas forças moldam as decisões abaixo:
+Two forces shape the decisions below:
 
-- A tabela precisa exibir centenas de milhares de registros sem travar.
-- Filtros são o mecanismo central de exploração, e uma investigação de
-  incidente é normalmente compartilhada entre pessoas.
+- The table needs to display hundreds of thousands of records without
+  freezing.
+- Filters are the central exploration mechanism, and an incident
+  investigation is usually shared between people.
 
-## Decisão
+## Decision
 
-### Navegação: issues como porta de entrada
+### Navigation: issues as the entry point
 
 ```
-/              Dashboard — métricas e tendências
-/issues        Lista de problemas agrupados   ← entrada padrão
-/issues/:fp    Detalhe: ocorrências, timeline, serviços afetados
-/logs          Tabela bruta com filtros — drill-down
-/imports       Upload e histórico de jobs
+/              Dashboard — metrics and trends
+/issues        List of grouped problems   ← default entry point
+/issues/:fp    Detail: occurrences, timeline, affected services
+/logs          Raw table with filters — drill-down
+/imports       Upload and job history
 ```
 
-O fluxo é **problema → ocorrências → linha bruta**. Uma home com log bruto
-entregaria um visualizador de arquivo; a lista de issues entrega uma
-ferramenta de observabilidade. É o ADR 0005 materializado como navegação, e
-não apenas como número no dashboard.
+The flow is **problem → occurrences → raw line**. A home page with raw
+logs would deliver a file viewer; the issues list delivers an
+observability tool. It is ADR 0005 made concrete as navigation, not just
+as a number on the dashboard.
 
-### Estrutura
+### Structure
 
 ```
 src/
@@ -43,143 +44,144 @@ src/
 │  ├─ analytics/
 │  └─ imports/
 ├─ shared/
-│  ├─ ui/         componentes shadcn
-│  ├─ lib/        cliente http, formatadores, tokenizer
-│  └─ schemas/    Zod, importado do backend
+│  ├─ ui/         shadcn components
+│  ├─ lib/        http client, formatters, tokenizer
+│  └─ schemas/    Zod, imported from the backend
 └─ app/           router, providers, layout
 ```
 
-Espelha os `domains/` do backend (ADR 0008), de modo que uma mudança de
-funcionalidade toca uma pasta de cada lado.
+Mirrors the backend's `domains/` (ADR 0008), so that a feature change
+touches one folder on each side.
 
-### Estado: três tipos, três mecanismos
+### State: three types, three mechanisms
 
-| Tipo | Mecanismo |
+| Type | Mechanism |
 |---|---|
-| Estado de servidor | TanStack Query |
-| Filtros e intervalo de tempo | `searchParams` na URL |
-| UI local | `useState` |
+| Server state | TanStack Query |
+| Filters and time range | `searchParams` in the URL |
+| Local UI | `useState` |
 
-**Filtros vivem na URL, não em estado local.** Nível, intervalo, busca e
-serviço são `searchParams`. A consequência é operacional, não estética: a
-visão é compartilhável por link — cola-se a URL no canal do incidente e o
-colega vê exatamente o mesmo recorte. Navegação para trás e recarregamento
-funcionam sem código adicional.
+**Filters live in the URL, not in local state.** Level, range, search and
+service are `searchParams`. The consequence is operational, not aesthetic:
+the view is shareable by link — paste the URL in the incident channel and
+the colleague sees exactly the same slice. Back navigation and reload work
+without extra code.
 
-Não há gerenciador de estado global. O que pareceria global neste app é
-estado de servidor (cache do TanStack Query) ou estado de URL.
+There is no global state manager. What would appear global in this app is
+either server state (TanStack Query cache) or URL state.
 
-### Ausência de `useEffect` para derivação e sincronização
+### No `useEffect` for derivation and synchronization
 
-| Situação | Mecanismo adotado |
+| Situation | Adopted mechanism |
 |---|---|
-| Buscar dados | TanStack Query |
-| Filtros | `useSearchParams` como fonte de verdade |
-| Lista derivada | cálculo no render; `useMemo` só após medição |
-| Resetar estado ao trocar filtro | `key` no componente, remontando |
-| Progresso de importação | `refetchInterval` no `useQuery` |
-| Scroll infinito | `IntersectionObserver` via callback ref |
-| Preferência de tema do sistema | `useSyncExternalStore` sobre `matchMedia` |
+| Fetching data | TanStack Query |
+| Filters | `useSearchParams` as the source of truth |
+| Derived list | computed during render; `useMemo` only after measurement |
+| Reset state on filter change | `key` on the component, remounting |
+| Import progress | `refetchInterval` on `useQuery` |
+| Infinite scroll | `IntersectionObserver` via callback ref |
+| System theme preference | `useSyncExternalStore` over `matchMedia` |
 
-A regra não é "nunca usar `useEffect`". `useEffect` é o mecanismo correto
-para **sincronizar com sistema externo** — atalhos de teclado com
-`addEventListener` são o caso legítimo neste projeto. O que se evita é usá-lo
-para derivar estado ou sincronizar estado com estado, que é a origem de
-re-renders em cascata.
+The rule is not "never use `useEffect`". `useEffect` is the correct
+mechanism to **synchronize with an external system** — keyboard shortcuts
+with `addEventListener` are the legitimate case in this project. What is
+avoided is using it to derive state or synchronize state with state, which
+is the source of cascading re-renders.
 
-Sobre re-render na tabela, o custo real não está em efeitos e sim no filtro
-re-renderizando as linhas virtualizadas a cada tecla. Mitigações: `debounce`
-antes de escrever na URL, e `React.memo` na linha com props primitivas.
-Ambas aplicadas após medição no Profiler.
+Regarding table re-renders, the real cost is not in effects but in the
+filter re-rendering virtualized rows on every keystroke. Mitigations:
+`debounce` before writing to the URL, and `React.memo` on the row with
+primitive props. Both applied after measuring in the Profiler.
 
-### Tema claro e escuro
+### Light and dark theme
 
-Escuro é o padrão, seguindo a convenção do gênero. Três estados: `light`,
-`dark`, `system`.
+Dark is the default, following the genre's convention. Three states:
+`light`, `dark`, `system`.
 
-A classe é aplicada por script bloqueante no `index.html`, antes do primeiro
-paint, lendo `localStorage` e `prefers-color-scheme`. Sem isso, a página
-pisca clara antes de aplicar o tema.
+The class is applied by a blocking script in `index.html`, before first
+paint, reading `localStorage` and `prefers-color-scheme`. Without this,
+the page flashes light before the theme is applied.
 
-Consequência obrigatória: **toda cor vem de CSS variable**. Cor de severidade
-e de gráfico definidas como hex no componente não trocam de tema — Recharts
-inclusive lê `hsl(var(--severity-error))` em vez de valor literal.
+Mandatory consequence: **every color comes from a CSS variable**. Severity
+and chart colors defined as hex in the component do not switch theme —
+Recharts even reads `hsl(var(--severity-error))` instead of a literal
+value.
 
-### Tabela virtualizada
+### Virtualized table
 
-`useInfiniteQuery` com TanStack Virtual, altura de linha fixa.
+`useInfiniteQuery` with TanStack Virtual, fixed row height.
 
-**Cursor composto.** Registros colidem em timestamp; cursor apenas temporal
-pula ou duplica linhas. O cursor é a tupla `(timestamp, id)`, com comparação
-de linha no SQL:
+**Composite cursor.** Records collide on timestamp; a timestamp-only
+cursor skips or duplicates rows. The cursor is the tuple
+`(timestamp, id)`, with row comparison in SQL:
 
 ```sql
 WHERE (timestamp, id) < (:cursorTs, :cursorId)
 ORDER BY timestamp DESC, id DESC
 ```
 
-**Reset ao mudar filtro.** Os filtros compõem a `queryKey`; a troca reinicia
-a paginação e o scroll retorna ao topo.
+**Reset on filter change.** Filters compose the `queryKey`; changing one
+resets pagination and scroll returns to the top.
 
-**Detalhe em painel lateral, não inline.** Expandir a linha dentro da lista
-quebraria a altura fixa exigida pela virtualização. O painel lateral evita
-medição dinâmica e é o padrão do gênero.
+**Detail in a side panel, not inline.** Expanding the row within the list
+would break the fixed height required by virtualization. The side panel
+avoids dynamic measurement and is the genre's standard.
 
 ### Dashboard
 
-Uma query por cartão, não uma consulta monolítica: cada cartão carrega,
-falha e exibe skeleton de forma independente.
+One query per card, not a monolithic query: each card loads, fails and
+shows a skeleton independently.
 
-Os cartões seguem o ADR 0005: taxa de erro no tempo, novos issues na janela,
-top issues por volume, issues em pico, distribuição por serviço. **"Total de
-logs" não é exibido como número de destaque** — é a métrica de vaidade que o
-ADR 0005 rejeita, e exibi-la contradiria a decisão.
+The cards follow ADR 0005: error rate over time, new issues in the window,
+top issues by volume, spiking issues, distribution by service. **"Total
+logs" is not shown as a headline number** — it is the vanity metric ADR
+0005 rejects, and showing it would contradict the decision.
 
-### Estados de vazio, erro e carregamento
+### Empty, error and loading states
 
-Obrigatórios em cada superfície. Vazio é chamada para ação, não tabela em
-branco. Erro traz mensagem específica e ação de repetir. Carregamento usa
-skeleton com a forma do conteúdo, não spinner.
+Mandatory on every surface. Empty is a call to action, not a blank table.
+Error carries a specific message and a retry action. Loading uses a
+skeleton shaped like the content, not a spinner.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Filtros em estado local ou store global.** Mais simples de implementar.
-Descartada porque elimina a propriedade mais útil da ferramenta: a visão
-compartilhável por link.
+**Filters in local state or a global store.** Simpler to implement.
+Discarded because it eliminates the tool's most useful property: the
+view shareable by link.
 
-**Redux ou Zustand.** Descartada por ausência de estado global de cliente —
-adicionar a camada seria estrutura sem conteúdo.
+**Redux or Zustand.** Discarded due to the absence of genuinely global
+client state — adding the layer would be structure without content.
 
-**Paginação numerada em vez de scroll infinito.** Defensável, e mais simples
-de implementar corretamente. Descartada porque o enunciado cita scroll
-infinito ou paginação otimizada, e a exploração contínua é o padrão de
-interação em ferramentas de log.
+**Numbered pagination instead of infinite scroll.** Defensible, and
+simpler to implement correctly. Discarded because the brief mentions
+infinite scroll or optimized pagination, and continuous exploration is the
+standard interaction pattern in log tools.
 
-**Tabela sem virtualização, apenas com página menor.** Descartada: o
-enunciado exige lidar com grandes volumes, e a virtualização é a
-demonstração direta desse requisito.
+**Table without virtualization, just a smaller page.** Discarded: the
+brief requires handling large volumes, and virtualization is the direct
+demonstration of that requirement.
 
-**Next.js com renderização no servidor.** Descartada no ADR 0001; a
-aplicação é um painel autenticado e interativo, sem requisito de SEO ou de
-primeiro carregamento otimizado.
+**Next.js with server-side rendering.** Discarded in ADR 0001; the
+application is an authenticated, interactive panel, with no SEO or
+first-load optimization requirement.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Visões compartilháveis por URL, sem trabalho adicional.
-- Cache e revalidação resolvidos por uma biblioteca, não por efeitos.
-- Tabela sustenta volume alto com altura de linha previsível.
+**Positive**
+- Shareable views via URL, with no extra work.
+- Cache and revalidation solved by a library, not by effects.
+- The table sustains high volume with predictable row height.
 
-**Negativas**
-- Filtros na URL exigem serialização e validação dos `searchParams` com Zod,
-  já que são entrada do usuário.
-- Altura de linha fixa obriga a truncar a mensagem na lista, empurrando o
-  conteúdo completo para o painel lateral.
-- O script bloqueante de tema é código fora do React, que precisa permanecer
-  em sincronia com o provider.
+**Negative**
+- URL filters require serializing and validating `searchParams` with Zod,
+  since they are user input.
+- Fixed row height forces truncating the message in the list, pushing the
+  full content to the side panel.
+- The blocking theme script is code outside React, which needs to stay in
+  sync with the provider.
 
-## Revisitar quando
+## Revisit when
 
-A aplicação passar a ter estado de cliente genuinamente global — múltiplas
-abas de investigação abertas simultaneamente, por exemplo — momento em que um
-store dedicado passaria a se justificar.
+The application acquires genuinely global client state — multiple
+investigation tabs open simultaneously, for example — at which point a
+dedicated store would become justified.

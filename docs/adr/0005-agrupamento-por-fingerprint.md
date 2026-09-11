@@ -1,144 +1,147 @@
-# ADR 0005 — Agrupamento de eventos por fingerprint
+# ADR 0005 — Grouping events by fingerprint
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-Uma plataforma que apenas lista e filtra logs entrega pouco valor analítico.
-Uma tela com 1,2 milhão de linhas e um gráfico de volume total não responde a
-pergunta que o time de operações realmente faz: *o que está quebrado, desde
-quando, e está piorando?*
+A platform that only lists and filters logs delivers little analytical
+value. A screen with 1.2 million lines and a total-volume chart does not
+answer the question the operations team actually asks: *what is broken,
+since when, and is it getting worse?*
 
-O problema é que o mesmo erro aparece milhares de vezes com variações
-irrelevantes — um UUID diferente, outro IP, outra duração em ms. Contados
-como eventos distintos, viram ruído. Agrupados, viram um problema.
+The problem is that the same error appears thousands of times with
+irrelevant variations — a different UUID, another IP, another duration in
+ms. Counted as distinct events, they become noise. Grouped, they become a
+problem.
 
-Este é o conceito central de ferramentas como Sentry, e é o que transforma
-volume em informação.
+This is the core concept of tools like Sentry, and it is what turns volume
+into information.
 
-## Decisão
+## Decision
 
-Calcular um **fingerprint** por registro no momento da ingestão e manter uma
-entidade `Issue` agregando todos os eventos de mesma assinatura.
+Compute a **fingerprint** per record at ingestion time and maintain an
+`Issue` entity aggregating all events with the same signature.
 
-### Normalização da mensagem
+### Message normalization
 
-Antes do hash, a mensagem é tokenizada. O resultado da normalização é uma
-**sequência ordenada de spans tipados**: trechos de texto fixo intercalados
-com spans variáveis, cada um carregando a sua espécie. A assinatura vem de
-uma serialização canônica dessa sequência — uma string derivada, detalhe
-interno do cálculo, que não é exibida nem persistida.
+Before hashing, the message is tokenized. The result of normalization is
+an **ordered sequence of typed spans**: fixed text chunks interleaved with
+variable spans, each carrying its own kind. The signature comes from a
+canonical serialization of that sequence — a derived string, an internal
+detail of the computation, which is neither displayed nor persisted.
 
 ```
 "User 8f3a-21b failed login from 192.168.1.44 after 3200ms"
                         ↓
-[texto "User "] [uuid] [texto " failed login from "] [ip]
-[texto " after "] [num] [texto "ms"]
+[text "User "] [uuid] [text " failed login from "] [ip]
+[text " after "] [num] [text "ms"]
                         ↓
-fingerprint = sha1(serialização canônica + service_name + severity_number)
+fingerprint = sha1(canonical serialization + service_name + severity_number)
 ```
 
-Espécies reconhecidas: UUID, IP (v4 e v6), número, hexadecimal longo,
-timestamp, caminho com identificador, e-mail, e valores entre aspas.
+Recognized kinds: UUID, IP (v4 and v6), number, long hexadecimal,
+timestamp, path with identifier, email, and quoted values.
 
-A notação `<uuid>`, `<ip>`, `<num>` usada neste documento — e a notação
-`⟨id⟩` usada no ADR 0011 — é **ilustrativa**. Nenhuma forma de colchete é
-valor armazenado; as duas descrevem a mesma sequência de spans. Quem
-renderiza escolhe a representação visual de cada espécie (ADR 0011).
+The `<uuid>`, `<ip>`, `<num>` notation used in this document — and the
+`⟨id⟩` notation used in ADR 0011 — is **illustrative**. No bracket form is
+a stored value; both describe the same span sequence. The renderer
+chooses the visual representation of each kind (ADR 0011).
 
-### Escopo do corpo considerado
+### Scope of the body considered
 
-O agrupamento usa a **primeira linha não vazia do corpo**, com espaços em
-sequência colapsados. O corpo completo é preservado em `raw` (ADR 0002) e
-exibido no detalhe da ocorrência.
+Grouping uses the **first non-empty line of the body**, with runs of
+whitespace collapsed. The full body is preserved in `raw` (ADR 0002) and
+shown in the occurrence detail.
 
-O trade-off é assumido: a primeira linha agrupa demais quando a mensagem de
-topo é genérica — `Internal server error` cobre causas distintas. Isso é
-contido pela presença de `service_name` e `severity_number` na assinatura, e
-o refinamento já previsto é o fingerprint hierárquico descrito em
-*Revisitar quando*.
+The trade-off is accepted: the first line over-groups when the top
+message is generic — `Internal server error` covers distinct causes. This
+is contained by the presence of `service_name` and `severity_number` in
+the signature, and the already-planned refinement is the hierarchical
+fingerprint described in *Revisit when*.
 
-### Serviço e severidade ausentes
+### Missing service and severity
 
-Nem toda fonte traz serviço, e nem toda severidade é determinável (ADR 0002).
-Cada ausência contribui para a assinatura com um **sentinela estável**,
-escolhido de forma que não possa ocorrer naturalmente como valor real.
-Registros sem serviço agrupam entre si e nunca se confundem com um serviço
-existente; o mesmo vale para severidade.
+Not every source carries a service, and not every severity is
+determinable (ADR 0002). Each absence contributes a **stable sentinel** to
+the signature, chosen so that it cannot naturally occur as a real value.
+Records without a service group among themselves and are never confused
+with an existing service; the same applies to severity.
 
-Não se assume o nível mais baixo da escala no lugar da severidade ausente.
-Isso transformaria "não classificado" em um nível real, misturaria registros
-sem severidade com registros genuinamente de nível mínimo e distorceria a
-taxa de erro que o dashboard calcula.
+The lowest level of the scale is not assumed in place of missing severity.
+That would turn "unclassified" into a real level, would mix records with
+no severity with records genuinely at the minimum level, and would distort
+the error rate the dashboard computes.
 
-### Entidade Issue
+### Issue entity
 
 ```
 issue
-├─ fingerprint        (único)
-├─ sample_message     amostra representativa
+├─ fingerprint        (unique)
+├─ sample_message     representative sample
 ├─ severity_number
-├─ first_seen         primeira ocorrência
-├─ last_seen          última ocorrência
-├─ event_count        contador
-├─ affected_services  serviços distintos atingidos
+├─ first_seen         first occurrence
+├─ last_seen          last occurrence
+├─ event_count        counter
+├─ affected_services  distinct services affected
 └─ status             unresolved | resolved | ignored
 ```
 
-O upsert por `fingerprint` acontece no mesmo lote da inserção dos eventos,
-dentro da mesma transação.
+The upsert by `fingerprint` happens in the same batch as the event
+insertion, within the same transaction.
 
-### O que isso habilita no dashboard
+### What this enables on the dashboard
 
-Métricas que só existem porque há agrupamento:
+Metrics that only exist because there is grouping:
 
-- **New issues** — fingerprints vistos pela primeira vez na janela. É o sinal
-  mais útil que a plataforma produz.
-- **Regression** — issue marcado como resolvido que voltou a ocorrer.
-- **Spike** — issue crescendo N× acima da média da janela anterior.
-- **Blast radius** — quantos serviços ou hosts distintos o mesmo issue atinge.
+- **New issues** — fingerprints seen for the first time in the window. It
+  is the most useful signal the platform produces.
+- **Regression** — an issue marked resolved that occurred again.
+- **Spike** — an issue growing N× above the previous window's average.
+- **Blast radius** — how many distinct services or hosts the same issue
+  affects.
 
-A alternativa a essas métricas seria "total de logs" e distribuição por
-nível, que são números de vaidade: mudam sempre, e não indicam ação.
+The alternative to these metrics would be "total logs" and level
+distribution, which are vanity numbers: they always change and indicate
+no action.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Agrupar por mensagem exata.** Trivial de implementar. Inútil na prática:
-qualquer identificador dinâmico na mensagem gera um grupo por evento.
+**Group by exact message.** Trivial to implement. Useless in practice: any
+dynamic identifier in the message produces one group per event.
 
-**Agrupar por similaridade textual (trigram, Levenshtein) em tempo de
-consulta.** Mais tolerante a variações que a normalização por regex não
-prevê. Descartado por custo: comparação par a par não escala, e o
-agrupamento precisa estar pronto na ingestão para que o dashboard seja
-responsivo.
+**Group by textual similarity (trigram, Levenshtein) at query time.** More
+tolerant of variations that regex normalization does not anticipate.
+Discarded for cost: pairwise comparison does not scale, and grouping needs
+to be ready at ingestion time for the dashboard to be responsive.
 
-**Clusterização por embedding.** Capturaria similaridade semântica, não só
-sintática. Descartado por adicionar dependência de modelo, custo e latência
-de ingestão, com ganho marginal sobre normalização por regex no domínio de
-logs — que é altamente formulaico.
+**Clustering by embedding.** Would capture semantic, not just syntactic,
+similarity. Discarded for adding model dependency, cost and ingestion
+latency, with marginal gain over regex normalization in the log domain —
+which is highly formulaic.
 
-**Não agrupar.** Descartado: é a decisão que separa este projeto de um CRUD
-de logs com filtro.
+**Do not group.** Discarded: this is the decision that separates this
+project from a CRUD app for logs with a filter.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Reduz o dashboard de milhões de eventos a dezenas de problemas acionáveis.
-- Habilita a família de métricas de tendência (novo, regressão, pico).
-- O custo é pago uma vez na ingestão, não a cada consulta.
+**Positive**
+- Reduces the dashboard from millions of events to dozens of actionable
+  problems.
+- Enables the family of trend metrics (new, regression, spike).
+- The cost is paid once at ingestion, not on every query.
 
-**Negativas**
-- Normalização por regex é heurística: pode agrupar demais (dois erros
-  distintos com a mesma forma) ou de menos (variação não prevista). Mitigado
-  por incluir `service_name` e severidade no hash, e por manter a amostra
-  visível para inspeção.
-- Mudar as regras de normalização invalida fingerprints existentes. Um
-  reprocessamento a partir de `raw` seria necessário — outro motivo para a
-  decisão do ADR 0002.
+**Negative**
+- Regex normalization is heuristic: it can over-group (two distinct
+  errors with the same shape) or under-group (an unanticipated variation).
+  Mitigated by including `service_name` and severity in the hash, and by
+  keeping the sample visible for inspection.
+- Changing normalization rules invalidates existing fingerprints. A
+  reprocessing from `raw` would be needed — another reason for the
+  decision in ADR 0002.
 
-## Revisitar quando
+## Revisit when
 
-A taxa de agrupamento indevido for perceptível na operação. O próximo passo
-seria fingerprint hierárquico (agrupar por stack trace quando presente, cair
-para a mensagem quando não), como Sentry faz.
+The rate of improper grouping becomes noticeable in operation. The next
+step would be a hierarchical fingerprint (group by stack trace when
+present, fall back to the message when not), as Sentry does.

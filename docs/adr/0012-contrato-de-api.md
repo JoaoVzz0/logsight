@@ -1,100 +1,103 @@
-# ADR 0012 — Contrato de API por OpenAPI gerado
+# ADR 0012 — API contract via generated OpenAPI
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O ADR 0001 decidiu TypeScript nas duas pontas e registrou, como consequência
-positiva, que "um único schema Zod serve como validação, tipo do backend,
-tipo do frontend e documentação OpenAPI". Na prática essa promessa foi
-implementada compartilhando os schemas Zod de resposta por um pacote do
-workspace (`packages/contracts`), consumido diretamente pelo frontend.
+ADR 0001 decided on TypeScript on both ends and recorded, as a positive
+consequence, that "a single Zod schema serves as validation, backend type,
+frontend type and OpenAPI documentation." In practice this promise was
+implemented by sharing the response Zod schemas through a workspace
+package (`packages/contracts`), consumed directly by the frontend.
 
-Esse arranjo compartilha o **formato do dado**, mas não o resto do contrato.
-A rota, o método HTTP, o formato do path, os parâmetros de query e os códigos
-de status ficam fora do tipo compartilhado. O frontend ainda escreve a
-chamada `fetch` à mão, e um erro de URL ou de método só aparece em runtime.
-O schema compartilhado dá uma falsa sensação de cobertura.
+That arrangement shares the **data shape**, but not the rest of the
+contract. The route, the HTTP method, the path format, the query
+parameters and the status codes stay outside the shared type. The frontend
+still writes the `fetch` call by hand, and a URL or method mistake only
+shows up at runtime. The shared schema gives a false sense of coverage.
 
-Ao mesmo tempo, o backend já produz um documento OpenAPI completo via
-`@fastify/swagger`, derivado dos mesmos schemas Zod. Esse documento descreve
-o contrato inteiro, não só o corpo das respostas.
+At the same time, the backend already produces a complete OpenAPI document
+via `@fastify/swagger`, derived from the same Zod schemas. That document
+describes the entire contract, not just the response body.
 
-## Decisão
+## Decision
 
-O **documento OpenAPI gerado dos schemas Zod das rotas Fastify é a fonte
-única de verdade do contrato de API.**
+The **OpenAPI document generated from the Fastify routes' Zod schemas is
+the single source of truth for the API contract.**
 
-- O backend serializa o documento com `@fastify/swagger`. O script
-  `pnpm --filter backend openapi:dump` sobe uma instância Fastify em modo
-  somente-schema e grava `packages/api-client/openapi.json`.
-- Um cliente TypeScript é gerado a partir desse documento para
-  `packages/api-client/src/` com `openapi-typescript`.
-- `pnpm generate:client`, na raiz, executa o dump e a geração em sequência.
-- `openapi.json` e o cliente gerado são **versionados e commitados**. Um
-  clone novo builda o frontend sem subir a API, e `docker compose up`
-  continua funcionando a partir do repositório limpo.
-- A geração é **manual**, executada após alterar uma rota, e não faz parte
-  do build.
-- O frontend consome apenas o cliente gerado. Nenhuma chamada `fetch` manual
-  contra a API.
-- `packages/contracts` foi renomeado para `packages/domain-constants` e
-  mantém somente constantes de domínio que não são contrato de transporte —
-  hoje, a escala de severidade OTel. Deixou de conter qualquer tipo de
-  requisição ou resposta HTTP.
+- The backend serializes the document with `@fastify/swagger`. The script
+  `pnpm --filter backend openapi:dump` boots a Fastify instance in
+  schema-only mode and writes `packages/api-client/openapi.json`.
+- A TypeScript client is generated from that document into
+  `packages/api-client/src/` with `openapi-typescript`.
+- `pnpm generate:client`, at the root, runs the dump and the generation in
+  sequence.
+- `openapi.json` and the generated client are **versioned and committed**.
+  A fresh clone builds the frontend without booting the API, and
+  `docker compose up` keeps working from a clean repository.
+- Generation is **manual**, run after changing a route, and is not part
+  of the build.
+- The frontend consumes only the generated client. No manual `fetch` call
+  against the API.
+- `packages/contracts` was renamed to `packages/domain-constants` and now
+  holds only domain constants that are not transport contract — currently,
+  the OTel severity scale. It no longer contains any HTTP request or
+  response type.
 
-As convenções que a decisão impõe sobre os schemas Zod do backend estão em
-`.claude/rules/architecture.md`, seção *API contract*.
+The conventions this decision imposes on the backend's Zod schemas are in
+`.claude/rules/architecture.md`, section *API contract*.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Schema Zod compartilhado por pacote do workspace.** A abordagem anterior.
-Compartilha o formato do dado, mas não a rota nem o método, deixando a
-chamada `fetch` fora do contrato. Descartada por cobrir só metade do
-problema e mascarar a outra metade.
+**Zod schema shared via a workspace package.** The previous approach.
+Shares the data shape, but not the route or method, leaving the `fetch`
+call outside the contract. Discarded for covering only half the problem
+and masking the other half.
 
-**tRPC.** Dá a melhor type safety fim a fim num monorepo TypeScript, sem
-etapa de geração. Descartada porque acopla frontend e backend ao mesmo
-runtime e não produz um documento OpenAPI. O enunciado pressupõe um backend
-documentado e consumível de forma independente (ver ADR 0001); ter a API
-descrita por um contrato aberto vale mais aqui do que a ergonomia do tRPC.
+**tRPC.** Gives the best end-to-end type safety in a TypeScript monorepo,
+with no generation step. Discarded because it couples frontend and backend
+to the same runtime and produces no OpenAPI document. The brief assumes a
+backend that is documented and independently consumable (see ADR 0001);
+having the API described by an open contract is worth more here than
+tRPC's ergonomics.
 
-**Cliente escrito à mão.** Sem custo de ferramenta. Descartada porque
-diverge do backend silenciosamente: nada garante que o cliente e as rotas
-concordem, e a divergência só aparece em runtime.
+**Hand-written client.** No tooling cost. Discarded because it silently
+diverges from the backend: nothing guarantees the client and the routes
+agree, and the divergence only shows up at runtime.
 
-**Geração automática no build.** Manteria o cliente sempre atualizado.
-Descartada pelo custo de tempo em cada build e por tornar o build do
-frontend dependente de subir a API, o que quebraria o build a partir de um
-clone limpo e dentro do `docker compose`.
+**Automatic generation on build.** Would keep the client always up to
+date. Discarded for the time cost on every build and for making the
+frontend build depend on the API being up, which would break the build
+from a clean clone and inside `docker compose`.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- O contrato inteiro — rota, método, path, query, status, formato — é
-  verificado em tempo de compilação no frontend, não só o corpo da resposta.
-- Um único documento serve como contrato, tipo do frontend e documentação
-  interativa (`/docs` via `@fastify/swagger-ui`).
-- O cliente e `openapi.json` versionados permitem build do frontend sem a
-  API no ar.
-- O acoplamento entre as pontas é um arquivo gerado, revisável no diff.
+**Positive**
+- The entire contract — route, method, path, query, status, shape — is
+  checked at compile time on the frontend, not just the response body.
+- A single document serves as contract, frontend type and interactive
+  documentation (`/docs` via `@fastify/swagger-ui`).
+- The versioned client and `openapi.json` allow building the frontend
+  without the API running.
+- The coupling between the two ends is a generated file, reviewable in the
+  diff.
 
-**Negativas**
-- Artefato gerado entra no controle de versão, com o ruído de diff que isso
-  traz.
-- A geração precisa ser rodada após cada mudança de rota. Esquecer deixa o
-  cliente defasado até alguém perceber — o risco é real e não há trava
-  automática, por escolha.
-- A qualidade dos tipos gerados depende de os schemas Zod traduzirem bem
-  para JSON Schema. Refinements e coerções no schema de resposta produzem
-  tipos ruins ou perdem informação; a regra em `architecture.md` existe por
-  causa disso.
+**Negative**
+- A generated artifact enters version control, with the diff noise that
+  brings.
+- Generation needs to be run after every route change. Forgetting leaves
+  the client stale until someone notices — the risk is real and there is
+  no automatic guard, by choice.
+- The quality of the generated types depends on the Zod schemas
+  translating well to JSON Schema. Refinements and coercions in the
+  response schema produce poor types or lose information; the rule in
+  `architecture.md` exists because of this.
 
-## Revisitar quando
+## Revisit when
 
-O número de rotas crescer a ponto de a geração manual ser esquecida com
-frequência — sinal de que a geração deveria entrar num hook de pré-commit ou
-na verificação de CI —, ou quando a ingestão passar a expor uma superfície
-que o OpenAPI 3.1 não descreve bem (streaming, por exemplo), caso em que
-parte do contrato deixaria de caber neste mecanismo.
+The number of routes grows to the point where manual generation is
+forgotten frequently — a sign that generation should move into a
+pre-commit hook or CI check —, or when ingestion starts exposing a surface
+that OpenAPI 3.1 does not describe well (streaming, for example), in which
+case part of the contract would stop fitting this mechanism.

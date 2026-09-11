@@ -1,154 +1,158 @@
-# ADR 0011 — Legibilidade de log e acessibilidade
+# ADR 0011 — Log readability and accessibility
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O problema que a plataforma resolve não é armazenar logs — é lê-los. Log
-bruto é texto livre: identificadores, endereços e durações misturados à
-mensagem, sem hierarquia visual, sem alinhamento, sem separação entre o que
-varia e o que é constante.
+The problem the platform solves is not storing logs — it is reading them.
+Raw logs are free text: identifiers, addresses and durations mixed into
+the message, with no visual hierarchy, no alignment, no separation between
+what varies and what is constant.
 
-Uma tabela que apenas exibe as linhas do arquivo em HTML não resolve nada
-que `cat` já não resolvesse. As decisões abaixo tratam legibilidade e
-acessibilidade como requisito de produto, não como acabamento.
+A table that just displays the file's lines as HTML solves nothing that
+`cat` did not already solve. The decisions below treat readability and
+accessibility as a product requirement, not a finishing touch.
 
-## Decisão
+## Decision
 
-### O tokenizador de fingerprint também é o realce visual
+### The fingerprint tokenizer is also the visual highlighter
 
-O ADR 0005 define regras de normalização que identificam UUID, IP, número,
-hexadecimal, timestamp, caminho e e-mail dentro da mensagem, para calcular a
-assinatura de agrupamento.
+ADR 0005 defines normalization rules that identify UUID, IP, number,
+hexadecimal, timestamp, path and email within the message, in order to
+compute the grouping signature.
 
-**O frontend consome os spans tipados produzidos por essa normalização** e
-escolhe a representação visual de cada espécie. Não há regex própria de
-realce e a mensagem não é re-parseada na camada de apresentação: a espécie
-do span já vem decidida. Identificador, valor numérico e causa recebem
-tratamento visual distinto:
+**The frontend consumes the typed spans produced by that normalization**
+and chooses the visual representation of each kind. There is no separate
+highlighting regex, and the message is not re-parsed at the presentation
+layer: the span's kind has already been decided. Identifier, numeric value
+and cause receive distinct visual treatment:
 
 ```
 User 8f3a-21b failed login from 192.168.1.44 after 3200ms — upstream refused
-     └ id                       └ ip                └ duração   └ causa
+     └ id                       └ ip                └ duration  └ cause
 ```
 
-Uma função, dois usos: agrupa no backend, dá estrutura visual no frontend. A
-plataforma não recebe estrutura pronta — ela **infere** estrutura e a exibe.
+One function, two uses: it groups on the backend, gives visual structure
+on the frontend. The platform does not receive ready-made structure — it
+**infers** structure and displays it.
 
-A tokenização é memoizada por linha ou aplicada na chegada dos dados, nunca
-recalculada a cada frame de scroll.
+Tokenization is memoized per line or applied as data arrives, never
+recomputed on every scroll frame.
 
-### Na lista de issues, exibir o padrão, não a amostra
+### In the issues list, show the pattern, not the sample
 
-O issue mostra a forma normalizada, com os spans variáveis estilizados como
-elementos distintos do texto fixo. Os colchetes abaixo são notação deste
-documento, não o valor armazenado — a escolha do delimitador, ou de nenhum,
-é decisão de renderização (ADR 0005):
+The issue shows the normalized form, with variable spans styled as
+elements distinct from the fixed text. The brackets below are this
+document's notation, not the stored value — the choice of delimiter, or of
+none, is a rendering decision (ADR 0005):
 
 ```
 User ⟨id⟩ failed login from ⟨ip⟩ after ⟨num⟩ms
-47.291 ocorrências · 3 serviços · primeira vez há 3 dias
+47,291 occurrences · 3 services · first seen 3 days ago
 ```
 
-Essa é a representação legível do problema. A ocorrência concreta pertence
-ao detalhe, não à lista.
+This is the readable representation of the problem. The concrete
+occurrence belongs to the detail view, not the list.
 
-### Atributos como tabela clicável, nunca JSON bruto
+### Attributes as a clickable table, never raw JSON
 
-O campo `attributes` (JSONB, ADR 0002) é renderizado como pares de
-chave/valor. Clicar em um valor **adiciona o filtro correspondente** e o
-escreve na URL (ADR 0010).
+The `attributes` field (JSONB, ADR 0002) is rendered as key/value pairs.
+Clicking a value **adds the corresponding filter** and writes it to the
+URL (ADR 0010).
 
-É o que transforma "vi um erro" em "vi todos os erros desta região" em um
-clique, e é o que dá valor de interface ao JSONB, não apenas de
-armazenamento. O JSON original permanece disponível em seção recolhida, com
-ação de copiar — é o campo `raw`, presente para auditoria sem poluir a
-leitura.
+This is what turns "I saw an error" into "I saw every error in this
+region" with one click, and it is what gives interface value to the
+JSONB, not just storage value. The original JSON remains available in a
+collapsed section, with a copy action — this is the `raw` field, present
+for auditing without cluttering the reading experience.
 
-### Densidade e alinhamento
+### Density and alignment
 
-- Fonte monoespaçada no corpo do log; colunas de largura fixa
-- `font-variant-numeric: tabular-nums` nos números, para que o olho varra a
-  coluna verticalmente sem reler
-- Severidade como **faixa na borda esquerda**, não linha inteira colorida —
-  linha colorida vira ruído em densidade alta
-- Tempo relativo visível, absoluto no `title`
-- Cabeçalho fixo ao rolar
+- Monospaced font in the log body; fixed-width columns
+- `font-variant-numeric: tabular-nums` on numbers, so the eye can scan the
+  column vertically without re-reading
+- Severity as a **left-edge stripe**, not the whole colored row — a fully
+  colored row becomes noise at high density
+- Relative time visible, absolute time in the `title`
+- Fixed header while scrolling
 
-### Divulgação progressiva
+### Progressive disclosure
 
-Linha fechada: severidade, hora, serviço e mensagem truncada.
-Painel de detalhe: mensagem completa tokenizada, atributos em tabela,
-`trace_id` linkável e JSON original recolhido.
+Closed row: severity, time, service and truncated message.
+Detail panel: full tokenized message, attributes as a table, linkable
+`trace_id` and collapsed original JSON.
 
-O `trace_id` filtra todos os registros do mesmo trace, atravessando
-serviços — correlação distribuída aproveitando o campo já previsto no
-modelo canônico.
+`trace_id` filters every record from the same trace, across services —
+distributed correlation making use of the field already provided for in
+the canonical model.
 
-### Acessibilidade
+### Accessibility
 
-**Lista virtualizada.** O DOM contém apenas as linhas visíveis, então um
-leitor de tela anunciaria "linha 1 de 30" para um conjunto de centenas de
-milhares. O container declara `role="grid"` com `aria-rowcount` real, e cada
-linha declara `aria-rowindex`. É a armadilha específica de tabelas
-virtualizadas e é tratada explicitamente.
+**Virtualized list.** The DOM only contains the visible rows, so a screen
+reader would announce "row 1 of 30" for a set of hundreds of thousands.
+The container declares `role="grid"` with a real `aria-rowcount`, and each
+row declares `aria-rowindex`. This is the specific trap of virtualized
+tables and it is handled explicitly.
 
-**Severidade nunca apenas por cor.** Cor, rótulo textual e ícone de forma
-distinta (triângulo para erro, círculo para aviso). Cerca de 8% dos homens
-têm alguma deficiência de percepção de cor, e um painel de erro que dependa
-de vermelho e amarelo é inutilizável para eles.
+**Severity never by color alone.** Color, text label and a distinctly
+shaped icon (triangle for error, circle for warning). About 8% of men have
+some form of color perception deficiency, and an error panel that relies
+on red and yellow is unusable for them.
 
-**Contraste verificado nos dois temas.** Os tokens de severidade são
-conferidos contra o fundo de cada tema; o vermelho padrão do Tailwind sobre
-fundo cinza médio costuma ficar abaixo de 4.5:1.
+**Contrast verified in both themes.** Severity tokens are checked against
+each theme's background; Tailwind's default red on a medium gray
+background often falls below 4.5:1.
 
-**Navegação por teclado.** Setas percorrem a tabela, `Enter` abre o detalhe,
-`Esc` fecha. Foco sempre visível — o outline não é removido sem substituto.
+**Keyboard navigation.** Arrow keys traverse the table, `Enter` opens the
+detail, `Esc` closes it. Focus is always visible — the outline is not
+removed without a replacement.
 
-**`aria-live="polite"`** no progresso de importação, para anunciar conclusão
-sem interromper.
+**`aria-live="polite"`** on import progress, to announce completion
+without interrupting.
 
-**`prefers-reduced-motion`** desativa as transições de abertura de painel.
+**`prefers-reduced-motion`** disables panel-opening transitions.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Exibir a mensagem como texto puro, sem tokenização.** Mais simples e sem
-risco de realce incorreto. Descartada porque é exatamente o problema que a
-plataforma se propõe a resolver.
+**Display the message as plain text, with no tokenization.** Simpler and
+with no risk of incorrect highlighting. Discarded because it is exactly
+the problem the platform sets out to solve.
 
-**Um tokenizador próprio do frontend, separado do fingerprint.** Permitiria
-regras de realce mais ricas que as de agrupamento. Descartada por duplicar
-regra de domínio em dois lugares, com risco de divergência.
+**A frontend-only tokenizer, separate from the fingerprint one.** Would
+allow richer highlighting rules than grouping needs. Discarded for
+duplicating domain rules in two places, with the risk of divergence.
 
-**Realce sintático por biblioteca genérica** (Highlight.js, Prism). Descartada
-por serem orientadas a linguagens de programação, não a formatos de log.
+**Syntax highlighting via a generic library** (Highlight.js, Prism).
+Discarded for being oriented toward programming languages, not log
+formats.
 
-**Renderizar atributos como JSON formatado.** Mais fiel ao dado original.
-Descartada por não permitir a interação de filtro por clique, que é o que
-acelera a exploração.
+**Render attributes as formatted JSON.** More faithful to the original
+data. Discarded for not allowing click-to-filter interaction, which is
+what accelerates exploration.
 
-**Cores de severidade fixas por linha inteira.** Comum em ferramentas mais
-antigas. Descartada por prejudicar a leitura em densidade alta.
+**Fixed severity colors across the whole row.** Common in older tools.
+Discarded for hurting readability at high density.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- A regra de normalização tem um único dono e dois consumidores.
-- A exploração por filtro é acessível a um clique, sem digitar consulta.
-- A interface é utilizável por teclado e por leitor de tela, incluindo o caso
-  difícil da lista virtualizada.
+**Positive**
+- The normalization rule has a single owner and two consumers.
+- Filter-based exploration is accessible in one click, with no query
+  typing.
+- The interface is usable by keyboard and screen reader, including the
+  hard case of the virtualized list.
 
-**Negativas**
-- Realce incorreto é possível quando a heurística de token erra; o texto
-  permanece legível, apenas sem destaque adequado.
-- `aria-rowcount` em lista virtualizada exige atenção a cada mudança de
-  paginação, e é fácil de quebrar em refatoração.
-- Verificar contraste nos dois temas é trabalho manual, sem automação neste
-  escopo.
+**Negative**
+- Incorrect highlighting is possible when the token heuristic is wrong;
+  the text remains readable, just without proper emphasis.
+- `aria-rowcount` in a virtualized list requires attention on every
+  pagination change, and is easy to break during refactoring.
+- Verifying contrast in both themes is manual work, with no automation in
+  this scope.
 
-## Revisitar quando
+## Revisit when
 
-O conjunto de fontes crescer a ponto de as regras de token divergirem entre
-agrupamento e realce — momento em que o tokenizador compartilhado precisaria
-expor dois modos em vez de um.
+The set of sources grows to the point where the token rules diverge
+between grouping and highlighting — at which point the shared tokenizer
+would need to expose two modes instead of one.

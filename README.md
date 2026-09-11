@@ -1,112 +1,151 @@
 # logview
 
-Log analysis platform. Imports logs from heterogeneous sources, normalizes
-them into a canonical model, groups occurrences by signature, and exposes
-query and dashboard surfaces.
+## O que é
 
-> Scaffold. Implementation starts at the ingestion core — see
-> `docs/adr/0002` and `docs/adr/0005`.
+Uma plataforma de análise de logs. Importa arquivos de fontes heterogêneas
+(GCP Cloud Logging, AWS CloudWatch, JSON Lines), normaliza cada registro
+para um modelo canônico baseado no OpenTelemetry Logs Data Model, agrupa
+ocorrências por fingerprint no estilo Sentry (a mesma falha, com variações
+irrelevantes de UUID, IP ou duração, vira um problema, não milhares de
+linhas soltas), e expõe consulta com filtros e busca, upload com
+acompanhamento de progresso, e um dashboard com métricas derivadas do
+agrupamento.
 
-## Running
+## Inspirações
+
+- **Sentry**, pelo agrupamento de eventos por fingerprint e pela ideia de
+  que o produto é "o que está quebrado", não "quantas linhas existem".
+- **Datadog e Grafana**, pela densidade de informação e pelo tema escuro
+  como padrão, adequados a uma ferramenta de observabilidade usada por
+  quem já sabe o que está procurando.
+
+## Funcionalidades
+
+| Do desafio | Como está implementado hoje |
+|---|---|
+| Importação de arquivos | Upload multipart em `/imports`, com detecção automática de formato e opção de forçar a origem. |
+| Processamento e classificação automática | Cada linha passa por um adapter (GCP, CloudWatch, JSON Lines), normaliza severidade para a escala OTel e recebe um fingerprint que agrupa ocorrências da mesma falha em um `Issue`. |
+| Armazenamento estruturado | PostgreSQL, colunas tipadas para o núcleo do registro e JSONB para o restante, com o texto original preservado em `raw`. |
+| Consulta em tabela responsiva | Tela `/logs`, tabela virtualizada (`@tanstack/react-virtual`), altura de linha fixa. |
+| Filtros por nível, data e conteúdo | Nível, intervalo de tempo e serviço, todos como `searchParams` na URL, então uma visão é compartilhável por link. |
+| Busca textual | Campo de busca sobre o corpo da mensagem, indexado com `pg_trgm`. |
+| Scroll infinito | `IntersectionObserver` sobre um elemento sentinela, sem paginação numerada. |
+| Dashboard com indicadores e gráficos | Um card por métrica na tela inicial, cada um com sua própria consulta, carregamento e estado de erro. |
+| Tendências e distribuição | Taxa de erro ao longo do tempo, novos issues na janela, issues em pico (crescimento anômalo) e distribuição por serviço. |
+
+Um ponto a declarar sem rodeio: a tela dedicada de navegação por issue a
+issue (`/issues`, com lista e detalhe por fingerprint) prevista no desenho
+de frontend ainda não tem implementação, apenas a rota existe. O
+agrupamento e as métricas derivadas dele já funcionam e aparecem no
+dashboard; o que falta é a tela de exploração issue por issue. Detalhes em
+[docs/architecture/frontend.md](docs/architecture/frontend.md).
+
+## Como rodar
+
+Com Docker (único pré-requisito: Docker e Docker Compose):
 
 ```bash
 cp .env.example .env
 docker compose up
 ```
 
-Web on `http://localhost:5173`, API on `http://localhost:3333`.
+- Web em `http://localhost:5173`
+- API em `http://localhost:3333`
+- Documentação interativa da API em `http://localhost:3333/docs`
 
-Local development without containers:
+Sem containers, para desenvolvimento local:
 
 ```bash
 pnpm install
-docker compose up postgres redis -d
+docker compose up postgres -d
 pnpm --filter backend prisma:migrate
 pnpm dev
 ```
 
-After changing an API route or its schema, regenerate the typed client the
-frontend consumes:
+`pnpm dev` sobe a API e o frontend em paralelo (`pnpm --parallel --filter
+"./backend" --filter "./frontend" dev`). Não há processo de worker separado
+para subir: a importação roda dentro do próprio processo da API. Ver
+[docs/architecture/backend.md](docs/architecture/backend.md#fila-de-jobs-o-que-está-implementado)
+para o porquê.
+
+Depois de alterar uma rota ou seu schema, regenere o cliente tipado que o
+frontend consome:
 
 ```bash
 pnpm generate:client
 ```
 
-This dumps the OpenAPI document from the backend to
-`packages/api-client/openapi.json` and regenerates `packages/api-client/src`.
-Commit the result with the route change. Interactive API documentation is
-served at `http://localhost:3333/docs` via `@fastify/swagger-ui`.
+Isso lê as rotas do backend, escreve `packages/api-client/openapi.json` e
+regenera `packages/api-client/src`. Os dois são artefatos gerados,
+versionados no repositório; nunca são editados à mão.
 
-## Synthetic log data
+## Testando com volume
 
-Generate a synthetic log file to exercise the platform under volume:
+Para avaliar o comportamento sob grande volume de dados, o repositório traz
+um gerador de log sintético e uma ingestão via linha de comando,
+independentes da interface:
 
 ```bash
 pnpm generate:logs --lines 1000000 --format json-lines --out big-sample.jsonl
+pnpm ingest big-sample.jsonl
 ```
 
-- `--lines` defaults to `100000`, `--format` to `json-lines`
-  (`gcp`, `cloudwatch`, `json-lines`), `--out` to `big-sample.<ext>`.
-- Output is written as a stream, so a million lines takes seconds.
-- Records vary by service, severity and variable values (ids, ips,
-  durations) so normalization produces many distinct fingerprints, with a
-  fraction of degenerate records (missing severity, empty body) and
-  timestamps spread over the last seven days.
+`generate:logs` escreve em stream (um milhão de linhas leva segundos, não
+minutos) e varia serviço, severidade e valores de variável entre os
+registros, de forma que a normalização produza muitos fingerprints
+distintos, com uma fração de registros degenerados (severidade ausente,
+corpo vazio) e timestamps espalhados pelos últimos sete dias.
 
-When only the containers are running, invoke the compiled script inside the
-API container:
+`pnpm ingest` roda o mesmo pipeline de ingestão usado pelo upload HTTP,
+reportando progresso no terminal (linhas processadas, erros de parse,
+registros por segundo ao final). Ambos os comandos também funcionam dentro
+dos containers:
 
 ```bash
 docker compose exec api node dist/scripts/generate-logs.js --lines 1000000 --format gcp
-```
-
-## Ingesting a file
-
-Run the ingestion pipeline over a log file from the command line:
-
-```bash
-pnpm ingest big-sample.jsonl [--source-type gcp-cloud-logging] [--batch-size 5000]
-```
-
-- `--source-type` overrides adapter detection; omit it to let the registry
-  detect the format from the first lines.
-- `--batch-size` sets how many records are persisted per chunk (default
-  `5000`); it determines how many chunks a file is split into.
-- Creates an `ImportJob`, streams the file through the same `ingestLogFile`
-  pipeline the HTTP upload uses.
-- Reports progress to stderr as it runs — file size, line count, chunk count,
-  then `chunk N/~M · processed/total lines (%) · parse errors` every few
-  percent — and prints a final summary (records, parse errors, chunks,
-  elapsed, lines per second) to stdout.
-- Exits non-zero if the job ends in `failed`.
-- Needs `DATABASE_URL` (loaded from `.env` locally, already set in the
-  compose environment). Inside the containers:
-
-```bash
 docker compose exec api node dist/cli/ingest.js /app/big-sample.jsonl
 ```
 
-## Documentation
+## Documentação
 
-- `docs/adr/` — architectural decisions, with the alternatives considered
-- `.claude/` — the rules, skills and commands the agent operates under; see `docs/ai-workflow.md`
-- `docs/ai-workflow.md` — how AI was used and what was verified
+- [docs/architecture/overview.md](docs/architecture/overview.md): visão de
+  conjunto, como backend e frontend se conectam, o fluxo de ingestão de
+  ponta a ponta.
+- [docs/architecture/backend.md](docs/architecture/backend.md): os
+  domínios do backend, o núcleo hexagonal, a fronteira travada por ESLint,
+  leitura versus escrita.
+- [docs/architecture/frontend.md](docs/architecture/frontend.md): a
+  organização por feature, estado (servidor, URL, local), tabela
+  virtualizada, tema e acessibilidade.
+- [docs/testing-strategy.md](docs/testing-strategy.md): o que é testado em
+  cada camada, os testes de maior valor, e onde a prática diverge da
+  política declarada.
+- [docs/adr/](docs/adr/): as decisões arquiteturais pontuais, com as
+  alternativas consideradas e descartadas. Os documentos de arquitetura
+  acima explicam a estrutura atual; os ADRs explicam por que cada escolha
+  foi feita.
+- [docs/development-process.md](docs/development-process.md): como o
+  trabalho foi conduzido.
 
-## Quality gates
+## Qualidade
 
 ```bash
-pnpm check      # tsc --strict && eslint, including the domain boundary rule
-pnpm test       # unit and integration
-pnpm test:e2e   # critical path
+pnpm check      # tsc --build --noEmit && eslint, incluindo a regra de fronteira de domínio
+pnpm test       # vitest, unitário e de integração
+pnpm test:e2e   # playwright
 ```
 
-`pnpm check` must pass before any commit.
+`pnpm check` precisa passar antes de qualquer commit.
 
-## Structure
+## Estrutura
 
 ```
-backend                  fastify + worker, hexagonal core (docs/adr/0008)
-frontend                 react, vite
-packages/api-client      generated OpenAPI client, the API contract (docs/adr/0012)
-packages/domain-constants domain constants shared across both (OTel severity scale)
+backend                    Fastify + processamento de importação, núcleo hexagonal (docs/architecture/backend.md)
+frontend                   React, Vite
+packages/api-client        cliente OpenAPI gerado, o contrato de API (docs/adr/0012)
+packages/domain-constants  constantes de domínio compartilhadas (escala de severidade OTel)
 ```
+
+## Screenshots
+
+_A preencher._

@@ -1,113 +1,117 @@
-# ADR 0001 — TypeScript fim a fim, com Fastify no backend
+# ADR 0001 — TypeScript end to end, with Fastify on the backend
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
-- **Substitui:** versão anterior desta decisão, que adotava NestJS
+- **Status:** Accepted
+- **Date:** 2026-09-08
+- **Replaces:** previous version of this decision, which adopted NestJS
 
-## Contexto
+## Context
 
-O desafio exige frontend em ReactJS e backend em Python ou Node.js, sem
-restringir framework. Os critérios de avaliação incluem organização do
-projeto, arquitetura, performance, tratamento de erros e validações.
+The challenge requires a ReactJS frontend and a Python or Node.js backend,
+without restricting the framework. The evaluation criteria include project
+organization, architecture, performance, error handling and validation.
 
-O peso do trabalho neste projeto **não está na camada HTTP**. São cerca de
-dez endpoints. O esforço real está em três lugares: o pipeline de
-normalização e agrupamento, as consultas analíticas com sua estratégia de
-índice, e o frontend de alto volume. A escolha de framework deve minimizar o
-tempo gasto fora desses três.
+The weight of the work in this project **is not in the HTTP layer**. There
+are around ten endpoints. The real effort is in three places: the
+normalization and grouping pipeline, the analytical queries with their
+indexing strategy, and the high-volume frontend. The framework choice
+should minimize time spent outside these three.
 
-Um segundo fator pesa igualmente: o processamento de importação roda em um
-**worker separado** (ADR 0006), não em requisição HTTP. O domínio precisa ser
-consumível pelos dois processos sem cerimônia de bootstrap.
+A second factor weighs equally: import processing runs in a **separate
+worker** (ADR 0006), not in an HTTP request. The domain needs to be
+consumable by both processes without bootstrap ceremony.
 
-## Decisão
+## Decision
 
-TypeScript nas duas pontas:
+TypeScript on both ends:
 
-- **Frontend:** React com Vite, TanStack Query para estado de servidor,
-  TanStack Virtual na tabela de alto volume, Recharts nos gráficos.
-- **Backend:** Node.js com **Fastify**, `fastify-type-provider-zod` para
-  validação e tipos na fronteira HTTP, `@fastify/swagger` para OpenAPI.
-- **Acesso a dados:** Prisma (ver ADR 0009).
-- **Contrato de API:** o documento OpenAPI gerado dos schemas Zod é a fonte
-  única, e o frontend consome um cliente gerado a partir dele (ver ADR 0012).
+- **Frontend:** React with Vite, TanStack Query for server state,
+  TanStack Virtual for the high-volume table, Recharts for charts.
+- **Backend:** Node.js with **Fastify**, `fastify-type-provider-zod` for
+  validation and types at the HTTP boundary, `@fastify/swagger` for OpenAPI.
+- **Data access:** Prisma (see ADR 0009).
+- **API contract:** the OpenAPI document generated from the Zod schemas is
+  the single source, and the frontend consumes a client generated from it
+  (see ADR 0012).
 
-O worker é um processo Node comum que importa as mesmas funções de domínio,
-sem instanciar servidor HTTP nem container de injeção de dependência.
+The worker is a plain Node process that imports the same domain functions,
+without instantiating an HTTP server or a dependency injection container.
 
-## Alternativas consideradas
+## Alternatives considered
 
 ### NestJS
 
-Foi a escolha inicial e foi revertida. A favor: estrutura de projeto já
-decidida, exception filters e validation pipe cobrindo dois critérios de
-avaliação, integração first-class com BullMQ.
+This was the initial choice and it was reverted. In favor: project
+structure already decided, exception filters and validation pipe covering
+two evaluation criteria, first-class integration with BullMQ.
 
-Descartada por três motivos.
+Discarded for three reasons.
 
-**A escala em que NestJS compensa não é atingida aqui.** O retorno estrutural
-aparece com muitos endpoints e múltiplos times. Com dez endpoints e um
-desenvolvedor, paga-se o custo de cerimônia sem colher o benefício.
+**The scale at which NestJS pays off is not reached here.** The structural
+return shows up with many endpoints and multiple teams. With ten endpoints
+and one developer, you pay the ceremony cost without reaping the benefit.
 
-**A estrutura deixaria de ser evidência.** Em um projeto NestJS, a
-organização de pastas é a que o CLI gerou — não distingue quem projetou
-camadas de quem seguiu o padrão do framework. Como "arquitetura" e
-"organização do projeto" são critérios explícitos de avaliação, a estrutura
-escolhida deliberadamente comunica mais (ver ADR 0008).
+**The structure would stop being evidence.** In a NestJS project, the
+folder organization is what the CLI generated — it does not distinguish
+someone who designed layers from someone who followed the framework's
+pattern. Since "architecture" and "project organization" are explicit
+evaluation criteria, a deliberately chosen structure communicates more
+(see ADR 0008).
 
-**O worker ficaria acoplado ao container de DI.** Rodar o processamento fora
-de uma requisição exigiria `NestFactory.createApplicationContext()`. Com
-Fastify, o domínio é TypeScript puro e o worker apenas o importa — o que é
-também a decisão arquitetural do ADR 0008, não só conveniência.
+**The worker would end up coupled to the DI container.** Running processing
+outside a request would require `NestFactory.createApplicationContext()`.
+With Fastify, the domain is plain TypeScript and the worker just imports
+it — which is also the architectural decision of ADR 0008, not just
+convenience.
 
-O que se perde com NestJS fora — validação, tratamento de erro e documentação
-automática — é recuperado com Zod, um `setErrorHandler` global e
-`@fastify/swagger`, sem o restante da cerimônia.
+What is lost by leaving NestJS out — validation, error handling and
+automatic documentation — is recovered with Zod, a global
+`setErrorHandler` and `@fastify/swagger`, without the rest of the ceremony.
 
 ### Express
 
-Descartado. É o mais fraco dos três para os critérios avaliados: não tem
-validação nativa, não propaga erro assíncrono sem wrapper, e não oferece
-geração de schema. Não há vantagem que compense.
+Discarded. It is the weakest of the three against the evaluated criteria:
+no native validation, does not propagate async errors without a wrapper,
+and offers no schema generation. There is no advantage that offsets that.
 
 ### Python (FastAPI)
 
-Ecossistema mais rico para processamento de dados e Pydantic é excelente na
-validação. Descartado porque o tipo compartilhado entre front e back é o
-principal ganho de coesão neste domínio, e porque o trabalho pesado aqui é
-I/O — ler arquivo grande, inserir em lote — e não CPU.
+Richer ecosystem for data processing, and Pydantic is excellent for
+validation. Discarded because the type shared between front and back is
+the main coherence gain in this domain, and because the heavy work here is
+I/O — reading a large file, batch inserting — not CPU.
 
-### Next.js unificando front e back
+### Next.js unifying front and back
 
-Descartado deliberadamente: o enunciado pressupõe containers distintos e um
-backend consumível de forma independente. Fundir as camadas tornaria a
-fronteira menos legível na avaliação.
+Deliberately discarded: the brief assumes distinct containers and a
+backend consumable independently. Merging the layers would make the
+boundary less legible for evaluation.
 
-## Justificativa que NÃO se aplica
+## Justification that does NOT apply
 
-Fastify **não** foi escolhido por performance de roteamento. O gargalo desta
-aplicação é o PostgreSQL e o parsing de arquivo; a diferença de throughput
-HTTP entre os frameworks é irrelevante no p95 deste sistema. Registrar isso
-evita uma justificativa que não se sustenta sob questionamento.
+Fastify **was not** chosen for routing performance. The bottleneck of this
+application is PostgreSQL and file parsing; the HTTP throughput difference
+between frameworks is irrelevant at the p95 of this system. Recording this
+avoids a justification that would not hold up under scrutiny.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- O domínio fica livre de framework, e o worker o consome sem bootstrap.
-- Um único schema Zod serve como validação, tipo do backend, tipo do frontend
-  e documentação OpenAPI.
-- A estrutura do projeto é uma decisão explícita e defensável (ADR 0008).
+**Positive**
+- The domain is free of framework, and the worker consumes it without
+  bootstrap.
+- A single Zod schema serves as validation, backend type, frontend type
+  and OpenAPI documentation.
+- The project structure is an explicit, defensible decision (ADR 0008).
 
-**Negativas**
-- Estrutura, tratamento de erro e organização de testes precisam ser
-  decididos em vez de herdados. Mitigado por fixá-los no ADR 0008 antes de
-  escrever código.
-- Sem injeção de dependência do framework, a composição de dependências é
-  manual — aceitável na escala atual, e explícita por consequência.
+**Negative**
+- Structure, error handling and test organization need to be decided
+  rather than inherited. Mitigated by fixing them in ADR 0008 before
+  writing code.
+- Without the framework's dependency injection, dependency composition is
+  manual — acceptable at the current scale, and explicit as a result.
 
-## Revisitar quando
+## Revisit when
 
-O número de contextos de negócio crescer a ponto de a composição manual de
-dependências ficar trabalhosa, ou quando mais de um time passar a trabalhar
-no mesmo repositório — cenário em que a uniformidade imposta por um
-framework opinativo passa a valer mais que a economia de cerimônia.
+The number of business contexts grows to the point where manual dependency
+composition becomes cumbersome, or when more than one team starts working
+in the same repository — a scenario where the uniformity imposed by an
+opinionated framework becomes worth more than the ceremony savings.

@@ -1,172 +1,173 @@
-# ADR 0008 — Monólito modular com núcleo hexagonal
+# ADR 0008 — Modular monolith with hexagonal core
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-Com Fastify (ADR 0001), a estrutura do projeto não vem herdada de um
-framework — é decisão explícita. Isso é oportunidade e risco: bem feita, a
-organização demonstra intenção arquitetural; mal feita, vira camada
-decorativa que apenas repassa chamadas.
+With Fastify (ADR 0001), the project structure is not inherited from a
+framework — it is an explicit decision. This is both opportunity and risk:
+done well, the organization demonstrates architectural intent; done
+poorly, it becomes a decorative layer that just forwards calls.
 
-O domínio tem duas naturezas distintas convivendo:
+The domain has two distinct natures coexisting:
 
-- **Escrita** — importar, normalizar, agrupar por assinatura, gerenciar o
-  ciclo de vida de um issue. Tem invariantes e regras.
-- **Leitura** — tabela paginada e agregações do dashboard. Não tem
-  invariante; tem projeção e volume.
+- **Write** — importing, normalizing, grouping by signature, managing an
+  issue's lifecycle. Has invariants and rules.
+- **Read** — the paginated table and dashboard aggregations. Has no
+  invariant; has projection and volume.
 
-Tratar as duas com o mesmo formalismo seria errado nos dois sentidos:
-subprotegeria a escrita ou encareceria a leitura.
+Treating both with the same formalism would be wrong in both directions:
+it would under-protect writes or over-cost reads.
 
-## Decisão
+## Decision
 
-**Monólito modular com núcleo hexagonal, DDD tático seletivo e leitura
-separada da escrita.**
+**Modular monolith with a hexagonal core, selective tactical DDD, and
+reads separated from writes.**
 
-### Estrutura
+### Structure
 
 ```
 src/
-├─ domains/                    contextos de negócio
+├─ domains/                    business contexts
 │  ├─ ingestion/
-│  │  ├─ core/                 entidades, value objects, domain services
+│  │  ├─ core/                 entities, value objects, domain services
 │  │  ├─ ports/                interfaces
-│  │  ├─ application/          casos de uso / application services
-│  │  ├─ infra/                implementações das portas
-│  │  └─ http/                 rotas Fastify
-│  ├─ issues/                  mesma forma
-│  ├─ logs/                    queries/ + http/ apenas
-│  └─ analytics/               queries/ + http/ apenas
+│  │  ├─ application/          use cases / application services
+│  │  ├─ infra/                port implementations
+│  │  └─ http/                 Fastify routes
+│  ├─ issues/                  same shape
+│  ├─ logs/                    queries/ + http/ only
+│  └─ analytics/               queries/ + http/ only
 ├─ shared/                     severity-scale, errors, result
 ├─ platform/                   fastify, prisma, redis, config, logger
-└─ worker/                     consumidor da fila
+└─ worker/                     queue consumer
 ```
 
-A camada interna chama-se `core/`, não `domain/`, para não colidir com o
-sentido de `domains/` no nível acima. Nomes distintos para conceitos
-distintos: `domains/` é subdomínio de negócio, `core/` é a camada sem
-dependência externa.
+The inner layer is called `core/`, not `domain/`, to avoid colliding with
+the meaning of `domains/` at the level above. Distinct names for distinct
+concepts: `domains/` is a business subdomain, `core/` is the layer with no
+external dependency.
 
-### Por que hexagonal
+### Why hexagonal
 
-A metáfora de portas e adaptadores veio do problema, não da literatura: o
-enunciado é literalmente sobre adaptar fontes heterogêneas a um modelo único.
+The ports-and-adapters metaphor came from the problem, not from the
+literature: the brief is literally about adapting heterogeneous sources to
+a single model.
 
-O teste aplicado para decidir se uma porta é real ou decorativa foi **ter ao
-menos duas implementações plausíveis**:
+The test applied to decide whether a port is real or decorative was
+**having at least two plausible implementations**:
 
-| Porta | Implementações |
+| Port | Implementations |
 |---|---|
 | `LogSourceAdapter` | GCP, CloudWatch, JSON Lines, nginx |
-| `JobQueue` | BullMQ hoje, Pub/Sub na evolução (ADR 0006) |
-| `FileStorage` | filesystem no compose, GCS com signed URL no Cloud Run (ADR 0007) |
-| `IssueRepository` | PostgreSQL em produção, in-memory nos testes |
+| `JobQueue` | BullMQ today, Pub/Sub as the evolution (ADR 0006) |
+| `FileStorage` | filesystem in the compose stack, GCS with signed URL on Cloud Run (ADR 0007) |
+| `IssueRepository` | PostgreSQL in production, in-memory in tests |
 
-Onde havia uma implementação só, sem segunda plausível, não foi criada
-interface.
+Where there was only one implementation, with no plausible second, no
+interface was created.
 
-### DDD tático, aplicado seletivamente
+### Tactical DDD, applied selectively
 
-Apenas onde há invariante real:
+Only where there is a real invariant:
 
-- **`Issue` é agregado.** `event_count` só cresce, `first_seen` é imutável
-  após a criação, `last_seen` só avança, e reabrir um issue resolvido
-  caracteriza uma **regressão** — que é uma das métricas do dashboard
-  (ADR 0005). É máquina de estados, não CRUD.
-- **Value objects** onde há regra de conversão: `Severity` (normalização para
-  a escala OTel preservando o rótulo original) e `Fingerprint` (normalização
-  textual e hash).
-- **Domain services** para regra que não pertence a uma entidade só: detecção
-  de formato (consulta todos os adapters e escolhe por confiança) e detecção
-  de pico (compara janelas de tempo entre múltiplos issues).
+- **`Issue` is an aggregate.** `event_count` only grows, `first_seen` is
+  immutable after creation, `last_seen` only advances, and reopening a
+  resolved issue characterizes a **regression** — one of the dashboard's
+  metrics (ADR 0005). It is a state machine, not CRUD.
+- **Value objects** where there is a conversion rule: `Severity`
+  (normalization to the OTel scale while preserving the original label)
+  and `Fingerprint` (textual normalization and hashing).
+- **Domain services** for rules that do not belong to a single entity:
+  format detection (queries every adapter and picks by confidence) and
+  spike detection (compares time windows across multiple issues).
 
-O restante — `LogRecord`, filtros, paginação — é dado, e foi tratado como
-dado.
+The rest — `LogRecord`, filters, pagination — is data, and was treated as
+data.
 
-### Sobre services
+### On services
 
-O padrão é usado, com a distinção explicitada pela localização:
+The pattern is used, with the distinction made explicit by location:
 
-- `core/services/` — **domain services**, regra sem dono único
-- `application/` — **application services**, orquestração de portas, sem
-  decisão de negócio
+- `core/services/` — **domain services**, rules with no single owner
+- `application/` — **application services**, port orchestration, with no
+  business decision
 
-O que se evita não é o nome, é o service que acumula regra de negócio,
-orquestração e acesso a dados no mesmo arquivo, esvaziando as entidades
-(modelo de domínio anêmico).
+What is avoided is not the name, it is the service that accumulates
+business rules, orchestration and data access in the same file, hollowing
+out the entities (anemic domain model).
 
-### Leitura não passa pelo domínio
+### Reads do not go through the domain
 
-`logs` e `analytics` **não têm `core/` nem `ports/`**. São query objects que
-projetam SQL direto para o formato da resposta.
+`logs` and `analytics` **have neither `core/` nor `ports/`**. They are
+query objects that project SQL directly into the response shape.
 
-Hidratar milhões de entidades para produzir um gráfico é custo sem
-contrapartida: projeção não tem invariante a proteger. É CQRS no sentido
-fraco — caminhos de leitura e escrita distintos, mesmo banco, sem event
-sourcing.
+Hydrating millions of entities to produce a chart is cost with no payoff:
+a projection has no invariant to protect. This is CQRS in the weak sense —
+distinct read and write paths, same database, no event sourcing.
 
-Ressalva de precisão: `logs` e `analytics` não são bounded contexts no
-sentido estrito; são projeções sobre os outros dois. Estão em `domains/` por
-coesão de navegação, não por classificação de DDD.
+Precision note: `logs` and `analytics` are not bounded contexts in the
+strict sense; they are projections over the other two. They live under
+`domains/` for navigational cohesion, not DDD classification.
 
-### A fronteira é verificável, não convencional
+### The boundary is verifiable, not conventional
 
-Regra única: **`core/` e `application/` não importam de `infra/`, `http/` ou
-`platform/`.**
+Single rule: **`core/` and `application/` do not import from `infra/`,
+`http/` or `platform/`.**
 
-Aplicada por `no-restricted-imports` no ESLint, incluindo o bloqueio de
-import direto de framework e driver (`fastify`, `@prisma/client`, `bullmq`,
-`ioredis`) dentro de `core/`. A regra quebra o build.
+Enforced by `no-restricted-imports` in ESLint, including blocking direct
+imports of framework and driver packages (`fastify`, `@prisma/client`,
+`bullmq`, `ioredis`) inside `core/`. The rule breaks the build.
 
-Consequência assumida: tipos de domínio não podem ser os tipos gerados pelo
-Prisma. A conversão entre modelo persistido e entidade acontece no repository,
-dentro de `infra/`. É o único mapper do projeto, e é o preço direto do
-isolamento.
+Accepted consequence: domain types cannot be the types generated by
+Prisma. Conversion between the persisted model and the entity happens in
+the repository, inside `infra/`. It is the only mapper in the project, and
+it is the direct cost of the isolation.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Clean Architecture com quatro camadas.** Mesmo princípio de dependência,
-com mais cerimônia: entidade, caso de uso, interface adapter, framework, com
-mapper entre cada fronteira. Descartada por custo desproporcional ao tamanho
-do domínio — hexagonal entrega o mesmo isolamento com uma fronteira só.
+**Clean Architecture with four layers.** Same dependency principle, with
+more ceremony: entity, use case, interface adapter, framework, with a
+mapper between each boundary. Discarded for cost disproportionate to the
+domain's size — hexagonal delivers the same isolation with a single
+boundary.
 
-**DDD tático completo.** Agregados, repositórios e domain events em todos os
-contextos. Descartada porque `logs` e `analytics` não têm invariante:
-aplicar o formalismo ali seria cerimônia sem proteção.
+**Full tactical DDD.** Aggregates, repositories and domain events in every
+context. Discarded because `logs` and `analytics` have no invariant:
+applying the formalism there would be ceremony without protection.
 
-**Camadas técnicas horizontais** (`controllers/`, `services/`,
-`repositories/` no topo). Descartada: agrupa por tipo de arquivo em vez de
-por capacidade de negócio, e espalha uma mudança de funcionalidade por
-várias pastas.
+**Horizontal technical layers** (`controllers/`, `services/`,
+`repositories/` at the top). Discarded: groups by file type rather than by
+business capability, and spreads a feature change across several folders.
 
-**Microserviços.** Descartada sem hesitação: um sistema, um deploy, um
-desenvolvedor.
+**Microservices.** Discarded without hesitation: one system, one deploy,
+one developer.
 
-**Vertical slice puro**, sem camada compartilhada por contexto. Boa opção em
-projetos maiores. Descartada por baixo ganho nesta escala.
+**Pure vertical slice**, with no layer shared across contexts. A good
+option in larger projects. Discarded for low gain at this scale.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Adicionar uma fonte de log toca um arquivo em `ingestion/infra/adapters/`
-  e um teste.
-- O domínio é testável sem banco, fila ou HTTP.
-- O worker importa o mesmo domínio, sem bootstrap de framework.
-- O isolamento é garantido por lint, não por disciplina.
+**Positive**
+- Adding a log source touches one file in
+  `ingestion/infra/adapters/` and one test.
+- The domain is testable without a database, queue or HTTP.
+- The worker imports the same domain, without framework bootstrap.
+- Isolation is guaranteed by lint, not by discipline.
 
-**Negativas**
-- Um mapper entre modelo Prisma e entidade, em `issues/infra/`.
-- Assimetria entre leitura e escrita: quem lê o código precisa entender por
-  que `logs/` não tem `core/`. Documentado aqui e no README.
-- Composição manual de dependências, sem container de DI.
-- Trocar de banco afetaria os query objects diretamente, já que usam SQL
-  específico do PostgreSQL. Trade-off assumido em favor de performance
+**Negative**
+- One mapper between the Prisma model and the entity, in `issues/infra/`.
+- Asymmetry between read and write: whoever reads the code needs to
+  understand why `logs/` has no `core/`. Documented here and in the
+  README.
+- Manual dependency composition, with no DI container.
+- Switching databases would directly affect the query objects, since they
+  use PostgreSQL-specific SQL. Trade-off accepted in favor of performance
   (ADR 0009).
 
-## Revisitar quando
+## Revisit when
 
-Um contexto passar a precisar de escala independente — o candidato natural é
-`ingestion`, se a ingestão contínua do ADR 0006 se concretizar. A fronteira
-de módulo já é o ponto de corte para essa extração.
+A context needs independent scaling — the natural candidate is
+`ingestion`, if the continuous ingestion from ADR 0006 materializes. The
+module boundary is already the cut point for that extraction.
