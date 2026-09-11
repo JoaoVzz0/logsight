@@ -30,3 +30,12 @@ export type ByServiceResponse =
   paths['/analytics/by-service']['get']['responses'][200]['content']['application/json']
 
 export type IssueSummary = NewIssuesResponse['issues'][number]
+
+export type IssueListResponse =
+  paths['/issues']['get']['responses'][200]['content']['application/json']
+
+export type IssueListItem = IssueListResponse['issues'][number]
+
+export type IssueListQuery = NonNullable<
+  paths['/issues']['get']['parameters']['query']
+>

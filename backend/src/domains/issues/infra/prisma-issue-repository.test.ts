@@ -71,4 +71,26 @@ describe('PrismaIssueRepository', () => {
 
     await logged.$disconnect()
   })
+
+  it('persists a regression across batches so it survives a restore from the database', async () => {
+    const repository = new PrismaIssueRepository(prisma)
+
+    await repository.upsertBatch([occurrence()])
+    await prisma.issue.update({
+      where: { fingerprint: 'fp-prisma' },
+      data: { status: 'RESOLVED', resolvedAt: new Date('2026-09-08T11:00:00.000Z') },
+    })
+
+    await repository.upsertBatch([
+      occurrence({ occurredAt: new Date('2026-09-08T12:00:00.000Z') }),
+    ])
+
+    const row = await prisma.issue.findUniqueOrThrow({
+      where: { fingerprint: 'fp-prisma' },
+    })
+    expect(row.regression).toBe(true)
+
+    const regressed = await repository.findByFingerprint('fp-prisma')
+    expect(regressed?.snapshot.regression).toBe(true)
+  })
 })

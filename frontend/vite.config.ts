@@ -20,7 +20,12 @@ export default defineConfig(({ command }) => ({
     strictPort: true,
     proxy:
       command === 'serve'
-        ? { '/logs': proxyToApi, '/imports': proxyToApi, '/analytics': proxyToApi }
+        ? {
+            '/logs': proxyToApi,
+            '/imports': proxyToApi,
+            '/analytics': proxyToApi,
+            '/issues': proxyToApi,
+          }
         : undefined,
   },
 }))

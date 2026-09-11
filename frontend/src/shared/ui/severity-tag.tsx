@@ -2,7 +2,7 @@ import {
   describeSeverity,
   type SeverityKey,
   type SeverityShape,
-} from '../model/severity'
+} from '../lib/severity'
 
 const BAND_CLASS: Record<SeverityKey, string> = {
   trace: 'bg-severity-trace',

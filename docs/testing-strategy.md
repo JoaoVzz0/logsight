@@ -5,7 +5,7 @@ distribuição está em `.claude/rules/testing.md`; Durante o processo, houveram
 
 ## Cobertura por escopo, não uniforme
 
-A distribuição real dos 34 arquivos `*.test.ts` do backend confirma a
+A distribuição real dos 36 arquivos `*.test.ts` do backend confirma a
 política de cobertura por área, e não uniforme:
 
 | Área | Arquivos de teste | Abordagem |
@@ -13,14 +13,14 @@ política de cobertura por área, e não uniforme:
 | `core/` (entidades, value objects, domain services) | 5 | test-first, casos de comportamento |
 | `application/` (casos de uso) | 3 | fakes em memória dos ports, sem biblioteca de mock |
 | `infra/` (adapters, repositórios) | 9 | fixtures reais, um arquivo por formato de origem |
-| `queries/` (SQL analítico e de listagem) | 8 | contra um Postgres real, seedado por arquivo |
+| `queries/` (SQL analítico e de listagem) | 9 | contra um Postgres real, seedado por arquivo |
 | `ports/` | 1 | contrato do port exercitado pela fake |
-| `http/` | 4 | rotas Fastify, com `app.inject` |
+| `http/` | 5 | rotas Fastify, com `app.inject` |
 
 No frontend não há nenhum arquivo `*.test.tsx`: nenhum componente React tem
-teste de unidade. Os 8 arquivos `*.test.ts` do frontend testam lógica pura
+teste de unidade. Os 9 arquivos `*.test.ts` do frontend testam lógica pura
 (`features/logs/model/filters.ts`, `features/analytics/model/time-range.ts`,
-`features/imports/model/progress.ts`, o cliente de API) e três testes de
+`features/imports/model/progress.ts`, o cliente de API) e quatro testes de
 varredura de código-fonte (`no-literal-colors.test.ts`, um por feature) que
 leem os arquivos `.tsx` como texto e verificam a ausência de cor literal,
 sem renderizar componente algum.
@@ -78,8 +78,8 @@ justifica a existência do port `IssueRepository`.
 
 ## Testes de banco contra um Postgres real
 
-Os 8 arquivos de `queries/` (mais os testes de `prisma-issue-repository.ts`
-e de `list-logs.ts`) instanciam `new PrismaClient()` e rodam contra o
+Os 9 arquivos de `queries/` (incluindo `list-logs.ts` e `list-issues.ts`,
+mais os testes de `prisma-issue-repository.ts`) instanciam `new PrismaClient()` e rodam contra o
 Postgres do `docker-compose.yml`, semeando e limpando os dados a cada
 arquivo (`beforeEach` apagando as tabelas envolvidas, ou o helper
 `seedAnalytics`/`resetAnalyticsData` compartilhado pelos testes de
@@ -112,13 +112,14 @@ cobre o mesmo fluxo por outro caminho:
   log list', ...)`, que sobe a aplicação Fastify real, grava em um Postgres
   real, espera o job chegar a `completed` por polling em `GET /imports/:id`,
   e confirma o resultado em `GET /logs`.
-- Esse teste verifica `GET /logs`, não um endpoint de issues: o domínio
-  `issues` não tem rotas HTTP hoje
-  (`backend/src/domains/issues/http/` só tem um `.gitkeep`), e a tela
-  `/issues` do frontend é um placeholder que aponta para o dashboard (ver
-  [frontend.md](architecture/frontend.md)). O agrupamento em si já funciona:
-  o que o usuário vê hoje como "novos issues" é o card do dashboard
-  alimentado por `domains/analytics/queries/new-issues.ts`.
+- Esse teste verifica `GET /logs`, não `GET /issues`: o teste de integração
+  do caminho crítico (upload até a listagem) cobre a listagem de registros,
+  não a lista de issues agrupados que a tela `/issues` consome hoje via
+  `domains/issues/http/issues-routes.ts` (coberto por
+  `issues-routes.test.ts`, o mesmo padrão de `logs-routes.test.ts`). O
+  agrupamento em si aparece em dois lugares: no card "novos issues" do
+  dashboard, alimentado por `domains/analytics/queries/new-issues.ts`, e na
+  tela `/issues`, alimentada por `domains/issues/queries/list-issues.ts`.
 
 ## Documentação relacionada
 

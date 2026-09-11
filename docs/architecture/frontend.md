@@ -12,7 +12,7 @@ frontend/src/
 ├─ features/
 │  ├─ analytics/   dashboard: cards, hooks, páginas
 │  ├─ imports/     upload, progresso, histórico
-│  ├─ issues/      apenas a página, placeholder (ver abaixo)
+│  ├─ issues/      lista de issues agrupados, filtros por status/severidade
 │  └─ logs/        tabela virtualizada, filtros, busca
 └─ shared/
    ├─ ui/           componentes shadcn e os design tokens (tokens.css)
@@ -26,12 +26,23 @@ Zod de cada tela ficam no `model/` da própria feature (por exemplo
 `features/logs/model/filters.ts`, `features/analytics/model/time-range.ts`),
 não em um módulo compartilhado.
 
-A feature `issues/` só tem `pages/issues-page.tsx`, um placeholder que
-direciona o usuário ao dashboard; suas pastas `api/`, `components/` e
-`hooks/` têm apenas um `.gitkeep`. A rota `/issues` existe no roteador, mas a
-tela dedicada descrita no ADR 0010 (lista de issues agrupados, com detalhe
-por fingerprint) ainda não está implementada, e o agrupamento em si já
-funciona e aparece no dashboard.
+A feature `issues/` segue a mesma fatia por `api/`, `components/`, `hooks/`,
+`model/` e `pages/` das demais. `pages/issues-page.tsx` lê e escreve os
+filtros de serviço e severidade em `searchParams` (mesmo padrão de
+`features/logs/model/filters.ts`) e `hooks/use-issues.ts` consome
+`GET /issues` via `TanStack Query`. A tela mostra a lista de issues
+agrupados — severidade, mensagem amostra, contagem de eventos, serviços
+afetados, hora relativa do último evento, badge de regressão e status
+resolvido/ignorado de-enfatizado — sem paginação (a contagem de issues é
+baixa cardinalidade) e sem o detalhe por fingerprint (ocorrências, timeline,
+trace), que segue como evolução (ver
+[development-process.md](../development-process.md)).
+
+Não há filtro por status na UI: nada no produto hoje move um issue para
+`resolved` ou `ignored` (não existe rota `PATCH`), então um filtro para
+esses valores nunca traria resultado para um usuário real. O campo `status`
+continua na resposta e segue alimentando o badge de regressão e o
+de-enfatizado de linha — ambos refletem dado real, só não são filtráveis.
 
 ## Roteamento
 
@@ -41,7 +52,7 @@ dinâmicos):
 
 ```
 /         DashboardPage   (features/analytics/pages/dashboard-page.tsx)
-/issues   IssuesPage      (features/issues/pages/issues-page.tsx, placeholder)
+/issues   IssuesPage      (features/issues/pages/issues-page.tsx)
 /logs     LogsPage        (features/logs/pages/logs-page.tsx)
 /imports  ImportsPage     (features/imports/pages/imports-page.tsx)
 ```
@@ -111,10 +122,17 @@ API, e paginação por scroll infinito.
 (`ImportProgress`), e histórico de importações (`ImportHistory`), sempre
 visível.
 
-**Issues** (`/issues`, `issues-page.tsx`): uma tela de placeholder que
-aponta para o dashboard, onde o agrupamento por fingerprint já aparece nos
-cards de novos issues, top issues e picos. A tela dedicada de navegação
-issue a issue é uma evolução, descrita como tal no processo de
+**Issues** (`/issues`, `issues-page.tsx` + `IssuesView`): lista de issues
+agrupados por fingerprint, ordenada por `lastSeen` decrescente, sem
+paginação (baixa cardinalidade). Cada linha mostra a severidade (banda +
+ícone + rótulo, reaproveitando `shared/ui/severity-tag.tsx` da tela de
+logs), a mensagem amostra, a contagem de eventos, os serviços afetados e a
+hora relativa do último evento; um issue regressado (resolvido e reaberto)
+carrega o badge "Regression", e um issue resolvido ou ignorado aparece
+de-enfatizado com seu próprio badge. Os filtros de serviço (exato, mesmo
+padrão do filtro de serviço da tela de logs) e severidade compõem a query
+da API e vivem em `searchParams`. O detalhe por fingerprint (ocorrências,
+timeline, trace) é uma evolução, descrita como tal no processo de
 desenvolvimento.
 
 ## Tabela virtualizada e cursor

@@ -33,6 +33,11 @@ import { importsRoutes } from '../domains/ingestion/http/imports-routes'
 import type { FileStorage } from '../domains/ingestion/ports/file-storage'
 import type { JobQueue } from '../domains/ingestion/ports/job-queue'
 import {
+  issueListQuerySchema,
+  issueListResponseSchema,
+} from '../domains/issues/http/issue-list-schema'
+import { issuesRoutes } from '../domains/issues/http/issues-routes'
+import {
   logListQuerySchema,
   logListResponseSchema,
   logRecordSchema,
@@ -69,6 +74,8 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
         LogListQuery: logListQuerySchema,
         LogRecord: logRecordSchema,
         LogListResponse: logListResponseSchema,
+        IssueListQuery: issueListQuerySchema,
+        IssueListResponse: issueListResponseSchema,
         CreateImportResponse: createImportResponseSchema,
         ImportStatusResponse: importStatusResponseSchema,
         ImportListResponse: importListResponseSchema,
@@ -92,6 +99,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   })
 
   await app.register(logsRoutes, { prisma: deps.prisma })
+  await app.register(issuesRoutes, { prisma: deps.prisma })
   await app.register(analyticsRoutes, { prisma: deps.prisma })
   await app.register(importsRoutes, {
     prisma: deps.prisma,

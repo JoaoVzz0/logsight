@@ -163,6 +163,120 @@
         ],
         "additionalProperties": false
       },
+      "IssueListQuery": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "unknown"
+                    ]
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 24
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "unknown"
+                      ]
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 24
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "IssueListResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fingerprint": {
+                  "type": "string"
+                },
+                "sampleMessage": {
+                  "type": "string"
+                },
+                "severityNumber": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "eventCount": {
+                  "type": "number"
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "lastSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "affectedServices": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "unresolved",
+                    "resolved",
+                    "ignored"
+                  ]
+                },
+                "regression": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "fingerprint",
+                "sampleMessage",
+                "severityNumber",
+                "eventCount",
+                "firstSeen",
+                "lastSeen",
+                "affectedServices",
+                "status",
+                "regression"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "issues"
+        ],
+        "additionalProperties": false
+      },
       "CreateImportResponse": {
         "type": "object",
         "properties": {
@@ -656,6 +770,75 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LogListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "service",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "unknown"
+                      ]
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 24
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "unknown"
+                        ]
+                      },
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 24
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "severity",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueListResponse"
                 }
               }
             }

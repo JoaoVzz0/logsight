@@ -68,17 +68,17 @@ export async function upsertIssues(
     INSERT INTO "public"."issues" (
       "fingerprint", "sample_message", "severity_number",
       "first_seen", "last_seen", "event_count",
-      "affected_services", "status", "resolved_at"
+      "affected_services", "status", "resolved_at", "regression"
     )
     SELECT
       r."fingerprint", r."sample_message", r."severity_number",
       r."first_seen", r."last_seen", r."event_count",
-      r."affected_services", r."status", r."resolved_at"
+      r."affected_services", r."status", r."resolved_at", r."regression"
     FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS r(
       "fingerprint" text, "sample_message" text, "severity_number" int,
       "first_seen" timestamptz, "last_seen" timestamptz, "event_count" bigint,
       "affected_services" text[], "status" "public"."IssueStatus",
-      "resolved_at" timestamptz
+      "resolved_at" timestamptz, "regression" boolean
     )
     ON CONFLICT ("fingerprint") DO UPDATE SET
       "sample_message" = EXCLUDED."sample_message",
@@ -88,7 +88,8 @@ export async function upsertIssues(
       "event_count" = EXCLUDED."event_count",
       "affected_services" = EXCLUDED."affected_services",
       "status" = EXCLUDED."status",
-      "resolved_at" = EXCLUDED."resolved_at"
+      "resolved_at" = EXCLUDED."resolved_at",
+      "regression" = EXCLUDED."regression"
   `
 }
 
@@ -103,7 +104,7 @@ function toSnapshot(record: IssueRecord): IssueSnapshot {
     affectedServices: record.affectedServices,
     status: STATUS_FROM_COLUMN[record.status],
     resolvedAt: record.resolvedAt,
-    regression: false,
+    regression: record.regression,
   }
 }
 
@@ -117,6 +118,7 @@ type IssueRecordsetRow = {
   readonly affected_services: readonly string[]
   readonly status: IssueStatusColumn
   readonly resolved_at: string | null
+  readonly regression: boolean
 }
 
 function toRecordsetRow(snapshot: IssueSnapshot): IssueRecordsetRow {
@@ -131,5 +133,6 @@ function toRecordsetRow(snapshot: IssueSnapshot): IssueRecordsetRow {
     status: STATUS_TO_COLUMN[snapshot.status],
     resolved_at:
       snapshot.resolvedAt === null ? null : snapshot.resolvedAt.toISOString(),
+    regression: snapshot.regression,
   }
 }

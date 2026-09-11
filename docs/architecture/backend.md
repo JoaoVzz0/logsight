@@ -13,7 +13,7 @@ decisão está em [ADR 0008](../adr/0008-domain-architecture.md) e
 | Domínio | O que faz |
 |---|---|
 | `ingestion` | Recebe um arquivo de log, detecta o formato, faz o parse linha a linha, monta o `LogRecord` canônico, calcula o fingerprint e persiste em lote. Dono do `ImportJob`. |
-| `issues` | Mantém o agregado `Issue`: agrupa ocorrências pelo fingerprint calculado na ingestão, com contadores e estado (`unresolved`, `resolved`, `ignored`). |
+| `issues` | Mantém o agregado `Issue`: agrupa ocorrências pelo fingerprint calculado na ingestão, com contadores e estado (`unresolved`, `resolved`, `ignored`). Expõe `GET /issues` como projeção de leitura da lista agrupada. |
 | `logs` | Projeção de leitura: listagem paginada de `LogRecord` com filtros e cursor. Só tem `queries/` e `http/`. |
 | `analytics` | Projeção de leitura: agregações para o dashboard (taxa de erro, novos issues, picos, distribuição por serviço). Só tem `queries/` e `http/`. |
 
@@ -33,6 +33,12 @@ domains/<nome>/
 ├─ infra/        implementações concretas dos ports
 └─ http/         rotas Fastify
 ```
+
+`issues` também tem uma pasta `queries/`, além dessa forma completa: o
+agregado é escrito por `application/`+`infra/` de `ingestion` (invariante
+real, DDD tático), mas a leitura da lista agrupada para `GET /issues` é uma
+projeção direta, sem hidratar `Issue` — o mesmo padrão de `logs/` e
+`analytics/`. Ver "Leitura versus escrita" abaixo.
 
 Em `ingestion`, todas as pastas têm código real:
 
@@ -74,10 +80,13 @@ ingestion/
    └─ import-status.ts
 ```
 
-Em `issues`, `application/` e `http/` existem como pastas mas contêm apenas
-um `.gitkeep`, sem código: o agregado é escrito diretamente pela camada de
-`infra` de `ingestion` (ver o fluxo de ingestão abaixo), e não tem rotas
-HTTP próprias hoje.
+Em `issues`, `application/` existe como pasta mas contém apenas um
+`.gitkeep`, sem código: o agregado é escrito diretamente pela camada de
+`infra` de `ingestion` (ver o fluxo de ingestão abaixo), não por um caso de
+uso próprio. `http/` e `queries/`, por outro lado, têm código: seguem o
+padrão de projeção de leitura de `logs/` e `analytics/` (`queries/` sem
+`core/`), servindo `GET /issues` para a lista de issues agrupados que a
+tela `/issues` do frontend consome.
 
 ```
 issues/
@@ -87,9 +96,14 @@ issues/
 │  └─ services/aggregate-occurrences.ts
 ├─ ports/
 │  └─ issue-repository.ts      IssueRepository
-└─ infra/
-   ├─ prisma-issue-repository.ts
-   └─ in-memory-issue-repository.ts
+├─ infra/
+│  ├─ prisma-issue-repository.ts
+│  └─ in-memory-issue-repository.ts
+├─ queries/
+│  └─ list-issues.ts           listIssues()
+└─ http/
+   ├─ issues-routes.ts         GET /issues
+   └─ issue-list-schema.ts
 ```
 
 Não há processo de worker separado: a importação roda dentro do processo
@@ -161,6 +175,11 @@ entidades:
 - `domains/logs/queries/list-logs.ts`: usa o client nativo do Prisma
   (`findMany`), sem `$queryRaw`, com paginação por cursor composto
   `(timestamp, id)` implementada em `queries/cursor.ts`.
+- `domains/issues/queries/list-issues.ts`: mesmo padrão, `findMany` sobre
+  `Issue` com filtro opcional por serviço afetado e severidade, ordenado por
+  `lastSeen` decrescente, sem cursor — a lista é baixo-cardinalidade
+  (centenas, não milhões), então um limite fixo (`MAX_ISSUES`) substitui a
+  paginação.
 - `domains/analytics/queries/`: `by-service.ts`, `error-rate.ts` e
   `spikes.ts` usam `$queryRaw` (agregação com `date_trunc`,
   `generate_series`, janela `LAG`); `new-issues.ts` e `top-issues.ts` usam o

@@ -1,10 +1,19 @@
+import { useSearchParams } from 'react-router-dom'
+
+import { IssuesView } from '../components/issues-view'
+import {
+  filtersToSearchParams,
+  parseIssueFilters,
+  type IssueFilters,
+} from '../model/filters'
+
 export function IssuesPage() {
-  return (
-    <section>
-      <h1 className="text-lg font-semibold">Issues</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Occurrences grouped by signature, ranked by volume and recency.
-      </p>
-    </section>
-  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = parseIssueFilters(searchParams)
+
+  function applyFilters(next: IssueFilters) {
+    setSearchParams(filtersToSearchParams(next))
+  }
+
+  return <IssuesView filters={filters} onFiltersChange={applyFilters} />
 }

@@ -109,5 +109,6 @@ analíticas em consultas repetidas.
 Troca do `createMany` por `COPY` na inserção em massa, para empurrar ainda
 mais o throughput de ingestão.
 
-E, do lado de produto, a tela de issues dedicada com o painel de detalhe de
-cada ocorrência, que hoje aparece de forma agregada no dashboard.
+E, do lado de produto, o painel de detalhe por ocorrência na tela `/issues`
+(timeline, trace) e as ações de resolver/ignorar expostas na UI — a lista
+de issues agrupados já existe, o que falta é a navegação issue a issue.

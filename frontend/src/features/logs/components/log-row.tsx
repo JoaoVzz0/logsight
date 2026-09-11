@@ -6,7 +6,7 @@ import {
   formatRelativeTime,
 } from '../../../shared/lib/relative-time'
 
-import { SeverityBand, SeverityTag } from './severity-tag'
+import { SeverityBand, SeverityTag } from '../../../shared/ui/severity-tag'
 
 export const ROW_HEIGHT = 32
 

@@ -8,7 +8,7 @@ import {
   type LogFilters,
   type SeverityLevelFilter,
 } from '../model/filters'
-import type { SeverityKey } from '../model/severity'
+import type { SeverityKey } from '../../../shared/lib/severity'
 
 const SEARCH_DEBOUNCE_MS = 300
 
