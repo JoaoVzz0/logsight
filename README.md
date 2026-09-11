@@ -14,6 +14,17 @@ importam (um UUID diferente, um IP, uma duração), vira um problema só, não
 milhares de linhas soltas. É o que transforma um milhão de linhas em algumas
 centenas de problemas acionáveis.
 
+## Telas
+
+_Screenshots aqui — Logs, Dashboard e Imports. Substitua estas linhas pelas
+imagens, por exemplo:_
+
+```
+![Logs](docs/screenshots/logs.png)
+![Dashboard](docs/screenshots/dashboard.png)
+![Imports](docs/screenshots/imports.png)
+```
+
 ## Inspirações
 
 Sentry, pelo agrupamento de eventos por fingerprint e pela ideia de que o
@@ -123,8 +134,8 @@ registros por segundo ao final).
 Ambos também funcionam dentro dos containers:
 
 ```bash
-docker compose exec api node_modules/.bin/tsx src/scripts/generate-logs.ts --lines 1000000 --format gcp --out /tmp/big-sample.jsonl
-docker compose exec api node_modules/.bin/tsx src/cli/ingest.ts /tmp/big-sample.jsonl
+docker compose exec api node_modules/.bin/tsx src/scripts/generate-logs.ts --lines 1000000 --format gcp --out /tmp/big-sample.json
+docker compose exec api node_modules/.bin/tsx src/cli/ingest.ts /tmp/big-sample.json
 ```
 
 ### Limite de tamanho do upload via navegador
@@ -167,10 +178,10 @@ stream e não tem esse teto.
 
 ## Qualidade
 
-os testes de integração precisam do Postgres.
+Os testes de integração precisam do Postgres de pé:
 
 ```bash
-docker compose up postgres -d # subir instância do postgres caso não esteja rodando
+docker compose up postgres -d   # sobe o Postgres, se ainda não estiver rodando
 pnpm check      # tsc --build --noEmit && eslint, incluindo a regra de fronteira de domínio
 pnpm test       # vitest, unitário e de integração
 pnpm test:e2e   # playwright, cobrindo a UI
@@ -185,5 +196,4 @@ backend                    Fastify + processamento de importação, núcleo hexa
 frontend                   React, Vite
 packages/api-client        cliente OpenAPI gerado, o contrato de API (docs/adr/0012)
 packages/domain-constants  constantes de domínio compartilhadas (escala de severidade OTel)
-
 ```

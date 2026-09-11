@@ -6,7 +6,7 @@ estrutura, não motivo.
 
 ## Forma do sistema
 
-Um monólito modular, dividido em dois processos que rodam separadamente:
+Um monólito modular, empacotado como dois serviços que sobem em containers distintos:
 
 - **backend** (`backend/`): Fastify, com um núcleo hexagonal por domínio de
   negócio. Expõe HTTP e roda o processamento de importação. Ver

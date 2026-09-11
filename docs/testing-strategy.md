@@ -1,14 +1,12 @@
 # Estratégia de testes
 
-Este documento descreve o que é testado hoje, lido diretamente dos arquivos
-de teste do repositório, não da política em si. A política que orienta essa
-distribuição está em `.claude/rules/testing.md`; aqui o foco é o que existe
-de fato, incluindo onde a prática diverge da política.
+Este documento descreve o que é testado hoje. A política que orienta essa
+distribuição está em `.claude/rules/testing.md`; Durante o processo, houveram decisões que divergiram da politicas estabelecida, que estão também nesse documento "vivo".
 
 ## Cobertura por escopo, não uniforme
 
 A distribuição real dos 34 arquivos `*.test.ts` do backend confirma a
-política de cobertura por área, não uniforme:
+política de cobertura por área, e não uniforme:
 
 | Área | Arquivos de teste | Abordagem |
 |---|---|---|
@@ -19,18 +17,18 @@ política de cobertura por área, não uniforme:
 | `ports/` | 1 | contrato do port exercitado pela fake |
 | `http/` | 4 | rotas Fastify, com `app.inject` |
 
-No frontend, zero arquivos `*.test.tsx`: nenhum componente React tem teste
-de unidade. Os 8 arquivos `*.test.ts` do frontend testam lógica pura
+No frontend não há nenhum arquivo `*.test.tsx`: nenhum componente React tem
+teste de unidade. Os 8 arquivos `*.test.ts` do frontend testam lógica pura
 (`features/logs/model/filters.ts`, `features/analytics/model/time-range.ts`,
 `features/imports/model/progress.ts`, o cliente de API) e três testes de
 varredura de código-fonte (`no-literal-colors.test.ts`, um por feature) que
 leem os arquivos `.tsx` como texto e verificam a ausência de cor literal,
 sem renderizar componente algum.
 
-O porquê: cobertura uniforme dentro de um orçamento de três dias produz
-testes rasos em todo lugar. Concentrar o esforço onde a correção é difícil
-de garantir e barata de testar (normalização de mensagem, mapeamento de
-severidade, paginação por cursor sobre timestamp compartilhado) rende mais
+O motivo é direto: cobertura uniforme dentro de um orçamento de três dias
+produz testes rasos em todo lugar. Concentrar o esforço onde a correção é
+difícil de garantir e barata de testar (normalização de mensagem, mapeamento
+de severidade, paginação por cursor sobre timestamp compartilhado) rende mais
 do que espalhar o mesmo esforço por toda a base.
 
 ## Os testes de maior valor
@@ -61,7 +59,7 @@ repete nem pula nenhum. Esse é o modo de falha que um cursor baseado só em
 timestamp produz.
 
 **Caminho crítico ponta a ponta.** Aqui a prática diverge do que a política
-descreve, e vale registrar a divergência (ver seção seguinte).
+descreve, e vale registrar a divergência (ver a seção seguinte).
 
 ## Ports testados com fakes em memória, nunca com mock
 
@@ -86,42 +84,41 @@ Postgres do `docker-compose.yml`, semeando e limpando os dados a cada
 arquivo (`beforeEach` apagando as tabelas envolvidas, ou o helper
 `seedAnalytics`/`resetAnalyticsData` compartilhado pelos testes de
 `analytics/`). `backend/vitest.config.ts` roda os arquivos sem paralelismo
-(`fileParallelism: false`) exatamente porque dividem o mesmo banco. Nenhum
+(`fileParallelism: false`) justamente porque dividem o mesmo banco. Nenhum
 teste de `queries/` mocka o banco: a SQL sob teste é a SQL real, incluindo
-as três consultas que usam `$queryRaw`
-(`by-service.ts`, `error-rate.ts`, `spikes.ts`).
+as três consultas que usam `$queryRaw` (`by-service.ts`, `error-rate.ts`,
+`spikes.ts`).
+
+Como esses testes precisam do Postgres de pé, o comando que os inclui só
+passa com o banco rodando: `docker compose up postgres -d` antes de
+`pnpm test`. Os testes de `core/` e de lógica pura, que não tocam o banco,
+rodam sozinhos.
 
 ## O que diverge da política documentada
 
 `.claude/rules/testing.md` descreve o caminho crítico como "um E2E de
 Playwright: upload de um arquivo, o job completa, o issue aparece na
-lista". Isso não existe no repositório hoje.
-
-O que existe:
+lista". Esse E2E de interface não existe no repositório hoje. O que existe
+cobre o mesmo fluxo por outro caminho:
 
 - Dois specs Playwright, `frontend/e2e/dashboard.spec.ts` (13 testes) e
   `frontend/e2e/logs.spec.ts` (21 testes), cobrindo o comportamento das
-  telas de dashboard e de logs, mas contra respostas de API
-  **interceptadas e simuladas** via `page.route(...)`, nunca contra um
-  backend real.
-- O fluxo real de upload até o registro aparecer na listagem é coberto,
-  mas como teste de integração do backend, não como E2E de interface:
+  telas de dashboard e de logs, mas contra respostas de API **interceptadas
+  e simuladas** via `page.route(...)`, não contra um backend real.
+- O fluxo real de upload até o registro aparecer na listagem é coberto, mas
+  como teste de integração do backend, não como E2E de interface:
   `backend/src/domains/ingestion/http/imports-routes.test.ts`,
   `it('uploads a file, completes the job and surfaces the records in the
   log list', ...)`, que sobe a aplicação Fastify real, grava em um Postgres
-  real, espera o job chegar a `completed` por polling em `GET
-  /imports/:id`, e confirma o resultado em `GET /logs`.
+  real, espera o job chegar a `completed` por polling em `GET /imports/:id`,
+  e confirma o resultado em `GET /logs`.
 - Esse teste verifica `GET /logs`, não um endpoint de issues: o domínio
   `issues` não tem rotas HTTP hoje
   (`backend/src/domains/issues/http/` só tem um `.gitkeep`), e a tela
-  `/issues` do frontend é um placeholder sem busca de dados (ver
-  [frontend.md](architecture/frontend.md)). O que um usuário vê hoje como
-  "novos issues" é o card do dashboard alimentado por
-  `domains/analytics/queries/new-issues.ts`.
-
-Registrar isso aqui em vez de descrever o E2E como se existisse é a mesma
-regra que orienta o resto desta documentação: descrever o código como ele
-é.
+  `/issues` do frontend é um placeholder que aponta para o dashboard (ver
+  [frontend.md](architecture/frontend.md)). O agrupamento em si já funciona:
+  o que o usuário vê hoje como "novos issues" é o card do dashboard
+  alimentado por `domains/analytics/queries/new-issues.ts`.
 
 ## Documentação relacionada
 
