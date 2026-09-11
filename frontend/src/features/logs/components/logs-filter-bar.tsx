@@ -63,7 +63,7 @@ export function LogsFilterBar({ filters, onChange }: LogsFilterBarProps) {
   return (
     <div
       data-testid="logs-filters"
-      className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border pb-4"
+      className="flex flex-wrap items-start gap-x-4 gap-y-3 border-b border-border pb-4"
     >
       <SearchField externalValue={filters.q ?? ''} onCommit={commitSearch} />
       <ServiceField
