@@ -127,6 +127,24 @@ docker compose exec api node_modules/.bin/tsx src/scripts/generate-logs.ts --lin
 docker compose exec api node_modules/.bin/tsx src/cli/ingest.ts /tmp/big-sample.jsonl
 ```
 
+### Limite de tamanho do upload via navegador
+
+A tela de importação aceita arquivos de até **1 GiB** pela API HTTP. O
+limite está declarado em dois lugares que precisam ficar em sincronia:
+
+- `DEFAULT_MAX_UPLOAD_BYTES` em
+  [backend/src/http/app.ts](backend/src/http/app.ts) — limite do
+  `@fastify/multipart`, sobrescrevível pela env var `MAX_UPLOAD_BYTES`
+  (em bytes), sem precisar mudar código.
+- `client_max_body_size` em
+  [frontend/nginx.conf](frontend/nginx.conf), dentro do `location /api/`
+  — sem isso o nginx rejeita o corpo da requisição com `413` antes mesmo
+  de a API ver o arquivo.
+
+Arquivos maiores que 1 GiB não passam pelo upload HTTP; use o caminho de
+linha de comando descrito acima (`pnpm ingest`), que lê o arquivo em
+stream e não tem esse teto.
+
 ## Documentação
 
 - [docs/architecture/overview.md](docs/architecture/overview.md): visão de

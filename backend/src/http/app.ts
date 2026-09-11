@@ -41,7 +41,7 @@ import { logsRoutes } from '../domains/logs/http/logs-routes'
 
 import { registerErrorHandler } from './error-handler'
 
-const DEFAULT_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024
 
 export type AppDependencies = {
   readonly prisma: PrismaClient
