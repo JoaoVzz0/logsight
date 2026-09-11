@@ -22,18 +22,18 @@ Each record follows the structure:
 
 | # | Decision | Status |
 |---|---|---|
-| [0001](0001-stack-da-aplicacao.md) | TypeScript end to end, with Fastify on the backend | Accepted |
-| [0002](0002-modelo-canonico-de-log.md) | Canonical log model based on OpenTelemetry | Accepted |
-| [0003](0003-postgresql-como-store-principal.md) | PostgreSQL with JSONB as the primary store | Accepted |
-| [0004](0004-adapters-por-fonte.md) | Adapters per source, with automatic format detection | Accepted |
-| [0005](0005-agrupamento-por-fingerprint.md) | Grouping events by fingerprint | Accepted |
-| [0006](0006-ingestao-assincrona.md) | Asynchronous ingestion with BullMQ over Redis | Accepted |
-| [0007](0007-execucao-e-deploy.md) | Docker Compose as delivery, cloud as demonstration | Accepted |
-| [0008](0008-arquitetura-de-dominio.md) | Modular monolith with hexagonal core | Accepted |
-| [0009](0009-acesso-a-dados.md) | Prisma as the access layer, with raw SQL in aggregations | Accepted |
-| [0010](0010-arquitetura-de-frontend.md) | Frontend architecture: URL as state, virtualized table | Accepted |
-| [0011](0011-legibilidade-e-acessibilidade.md) | Log readability and accessibility | Accepted |
-| [0012](0012-contrato-de-api.md) | API contract via generated OpenAPI, with a client versioned in the repository | Accepted |
+| [0001](0001-application-stack.md) | TypeScript end to end, with Fastify on the backend | Accepted |
+| [0002](0002-canonical-log-model.md) | Canonical log model based on OpenTelemetry | Accepted |
+| [0003](0003-postgresql-as-primary-store.md) | PostgreSQL with JSONB as the primary store | Accepted |
+| [0004](0004-adapters-per-source.md) | Adapters per source, with automatic format detection | Accepted |
+| [0005](0005-fingerprint-grouping.md) | Grouping events by fingerprint | Accepted |
+| [0006](0006-asynchronous-ingestion.md) | Asynchronous ingestion, in-process behind a `JobQueue` port | Accepted |
+| [0007](0007-execution-and-deployment.md) | Docker Compose as delivery, cloud as demonstration | Accepted |
+| [0008](0008-domain-architecture.md) | Modular monolith with hexagonal core | Accepted |
+| [0009](0009-data-access.md) | Prisma as the access layer, with raw SQL in aggregations | Accepted |
+| [0010](0010-frontend-architecture.md) | Frontend architecture: URL as state, virtualized table | Accepted |
+| [0011](0011-readability-and-accessibility.md) | Log readability and accessibility | Accepted |
+| [0012](0012-api-contract.md) | API contract via generated OpenAPI, with a client versioned in the repository | Accepted |
 
 ADR 0001 was revised after the initial decision for NestJS was reconsidered;
 the current version records the choice of Fastify and the reason for the

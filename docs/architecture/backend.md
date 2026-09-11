@@ -3,8 +3,8 @@
 Este documento descreve a estrutura real de `backend/src`, lida diretamente
 do código. Onde o código diverge do que um ADR previu, o que está aqui é o
 que existe hoje; a divergência é registrada explicitamente. O porquê de cada
-decisão está em [ADR 0008](../adr/0008-arquitetura-de-dominio.md) e
-[ADR 0009](../adr/0009-acesso-a-dados.md), linkados ao final.
+decisão está em [ADR 0008](../adr/0008-domain-architecture.md) e
+[ADR 0009](../adr/0009-data-access.md), linkados ao final.
 
 ## Os domínios
 
@@ -92,13 +92,9 @@ issues/
    └─ in-memory-issue-repository.ts
 ```
 
-`backend/src/worker/` contém apenas um `.gitkeep`. O script
-`dev:worker` em `backend/package.json` aponta para
-`src/worker/main.ts`, que não existe: não há processo de worker separado
-rodando hoje. O serviço `worker` em `docker-compose.yml` (`node
-dist/worker/main.js`) referencia o mesmo arquivo inexistente e portanto
-encerra ao subir; isso não afeta a importação, que roda dentro do processo
-da `api` (ver "Fila de jobs" abaixo).
+Não há processo de worker separado: a importação roda dentro do processo
+da `api`, em memória, atrás da porta `JobQueue` (ver "Fila de jobs"
+abaixo). `docker-compose.yml` só sobe `postgres`, `api` e `web`.
 
 ## Núcleo hexagonal
 
@@ -218,32 +214,32 @@ passar por HTTP nem pela fila.
 
 ### Fila de jobs: o que está implementado
 
-O ADR 0006 descreve a ingestão assíncrona rodando sobre **BullMQ e Redis**,
-com um worker separado e um port `JobQueue` com `getStatus()` e
-`job.updateProgress()`. O código implementa a porta
-(`domains/ingestion/ports/job-queue.ts`, com `enqueue()` e `onJob()`) mas
-tem uma única implementação, `InProcessJobQueue`
+O ADR 0006 descreve a decisão implementada: ingestão assíncrona
+**in-process**, atrás de um port `JobQueue`
+(`domains/ingestion/ports/job-queue.ts`, com `enqueue()` e `onJob()`) com
+uma única implementação, `InProcessJobQueue`
 (`domains/ingestion/infra/queue/in-process-job-queue.ts`), que invoca o
-handler no mesmo processo que recebeu o upload. Não há classe
-`BullMQJobQueue`, não há `import` de `bullmq` ou `ioredis` em nenhum arquivo
-de `backend/src` (as duas únicas ocorrências desses nomes no código são a
-própria regra de fronteira do ESLint e a string que a testa), e
-`backend/src/worker/` está vazio.
+handler no mesmo processo que recebeu o upload, sem bloquear a resposta.
+Não há `import` de `bullmq` ou `ioredis` em nenhum arquivo de
+`backend/src` (as duas únicas ocorrências desses nomes no código são a
+própria regra de fronteira do ESLint e a string que a testa) — BullMQ e
+Redis foram avaliados e descontinuados por escopo, não estão presentes no
+projeto.
 
-Na prática, hoje, a ingestão roda de forma síncrona dentro do processo que
-recebeu a requisição HTTP (ou do processo da CLI), não em um worker
-dedicado. A porta `JobQueue` existe e isola essa decisão: trocar
-`InProcessJobQueue` por uma implementação sobre uma fila real não exigiria
-mudar `application/` nem `core/`.
+Progresso e estado do job não fazem parte da porta `JobQueue`; vivem em
+`ImportJobStore`, sobre a tabela `ImportJob`, consultada pelo frontend em
+`GET /imports/:id`. A porta `JobQueue` isola apenas a entrega da mensagem
+ao handler: trocar `InProcessJobQueue` por uma implementação sobre uma
+fila real não exigiria mudar `application/` nem `core/`.
 
 ## Documentação relacionada
 
 - [overview.md](overview.md), como o backend se conecta ao frontend.
-- [ADR 0008](../adr/0008-arquitetura-de-dominio.md), o porquê do monólito
+- [ADR 0008](../adr/0008-domain-architecture.md), o porquê do monólito
   modular e do núcleo hexagonal.
-- [ADR 0009](../adr/0009-acesso-a-dados.md), o porquê de Prisma como padrão
+- [ADR 0009](../adr/0009-data-access.md), o porquê de Prisma como padrão
   e SQL bruto restrito a `analytics/`.
-- [ADR 0006](../adr/0006-ingestao-assincrona.md), o desenho original da
+- [ADR 0006](../adr/0006-asynchronous-ingestion.md), o desenho original da
   ingestão assíncrona (não é o que está implementado hoje; ver "Fila de
   jobs" acima).
 - [testing-strategy.md](../testing-strategy.md), como cada camada é testada.

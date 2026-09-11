@@ -18,8 +18,8 @@ decision rather than a delivery detail.
 ## Decision
 
 **Priority one:** `docker compose up` working from scratch, with no manual
-step beyond copying `.env.example`. Services: `api`, `worker`, `web`,
-`postgres`, `redis`. Migrations and sample data seeding run at startup.
+step beyond copying `.env.example`. Services: `api`, `web`, `postgres`.
+Migrations and sample data seeding run at startup.
 
 **Priority two:** cloud architecture documentation in the README, with a
 diagram, a multi-stage `Dockerfile` already compatible with Cloud Run, and
@@ -32,19 +32,16 @@ If there is a deployment, the topology is:
 
 | Component | Choice | Reason |
 |---|---|---|
-| API + Web | Cloud Run | scales to zero, direct container deploy |
-| Worker | Cloud Run with continuous CPU allocation | processing outside a request |
+| API + Web | Cloud Run, API with continuous CPU allocation | import processing runs in-process, outside the request (ADR 0006) |
 | PostgreSQL | Neon or Supabase | free tier and connection pooling |
-| Redis | Upstash | free tier |
 | Files | Cloud Storage | works around the upload limit (below) |
 
 ## Alternatives considered
 
-**Cloud SQL and Memorystore.** Would be the right choice in production and
-are what the README points to as the target. Discarded within the
-challenge scope due to cost: Cloud SQL has no free tier and Memorystore
-starts at a tier incompatible with an evaluation project. The decision is
-recorded as conscious, not as unawareness of the managed service.
+**Cloud SQL.** Would be the right choice in production and is what the
+README points to as the target. Discarded within the challenge scope due
+to cost: Cloud SQL has no free tier. The decision is recorded as
+conscious, not as unawareness of the managed service.
 
 **Infrastructure as code (Terraform), VPC, load balancer.** Discarded as
 disproportionate: in 3 days, they increase surface area without being run
@@ -68,10 +65,12 @@ The architecturally correct way out is not to raise the limit, but to
 Cloud Storage**, with the backend reading from the bucket afterward.
 Locally, the upload goes straight to the API through the compose stack.
 
-**CPU allocation.** Cloud Run only guarantees CPU during a request. A
-worker processing a file in the background is throttled under the default
-model, which requires always-allocated CPU, a minimum instance, or Cloud
-Run Jobs.
+**CPU allocation.** Cloud Run only guarantees CPU during a request. Import
+processing runs in-process, fire-and-forget, after the API has already
+responded `202` (ADR 0006) — under the default model that background work
+is throttled once the response is sent. The API service needs
+always-allocated CPU, not just during-request CPU, for the import to
+actually make progress.
 
 **Cold start.** With scale-to-zero, the first access pays startup latency.
 A minimum instance solves it, at the cost of continuous billing.

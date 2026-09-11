@@ -40,8 +40,8 @@ src/
 │  ├─ logs/                    queries/ + http/ only
 │  └─ analytics/               queries/ + http/ only
 ├─ shared/                     severity-scale, errors, result
-├─ platform/                   fastify, prisma, redis, config, logger
-└─ worker/                     queue consumer
+├─ platform/                   fastify, prisma, config, logger
+└─ cli/                        standalone entry points (e.g. ingest)
 ```
 
 The inner layer is called `core/`, not `domain/`, to avoid colliding with
@@ -61,7 +61,7 @@ The test applied to decide whether a port is real or decorative was
 | Port | Implementations |
 |---|---|
 | `LogSourceAdapter` | GCP, CloudWatch, JSON Lines, nginx |
-| `JobQueue` | BullMQ today, Pub/Sub as the evolution (ADR 0006) |
+| `JobQueue` | in-process today, a real broker as the evolution (ADR 0006) |
 | `FileStorage` | filesystem in the compose stack, GCS with signed URL on Cloud Run (ADR 0007) |
 | `IssueRepository` | PostgreSQL in production, in-memory in tests |
 
@@ -153,7 +153,8 @@ option in larger projects. Discarded for low gain at this scale.
 - Adding a log source touches one file in
   `ingestion/infra/adapters/` and one test.
 - The domain is testable without a database, queue or HTTP.
-- The worker imports the same domain, without framework bootstrap.
+- The CLI entry point imports the same domain, without framework
+  bootstrap.
 - Isolation is guaranteed by lint, not by discipline.
 
 **Negative**
