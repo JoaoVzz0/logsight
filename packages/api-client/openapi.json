@@ -315,6 +315,213 @@
           "imports"
         ],
         "additionalProperties": false
+      },
+      "ErrorRateResponse": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bucket": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "errors": {
+                  "type": "number"
+                },
+                "ratio": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "bucket",
+                "total",
+                "errors",
+                "ratio"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "buckets"
+        ],
+        "additionalProperties": false
+      },
+      "NewIssuesResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fingerprint": {
+                  "type": "string"
+                },
+                "sampleMessage": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "eventCount": {
+                  "type": "number"
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "fingerprint",
+                "sampleMessage",
+                "severity",
+                "eventCount",
+                "firstSeen"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "issues"
+        ],
+        "additionalProperties": false
+      },
+      "TopIssuesResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fingerprint": {
+                  "type": "string"
+                },
+                "sampleMessage": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "eventCount": {
+                  "type": "number"
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "fingerprint",
+                "sampleMessage",
+                "severity",
+                "eventCount",
+                "firstSeen"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "issues"
+        ],
+        "additionalProperties": false
+      },
+      "SpikesResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fingerprint": {
+                  "type": "string"
+                },
+                "sampleMessage": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "eventCount": {
+                  "type": "number"
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "currentCount": {
+                  "type": "number"
+                },
+                "previousCount": {
+                  "type": "number"
+                },
+                "multiplier": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "fingerprint",
+                "sampleMessage",
+                "severity",
+                "eventCount",
+                "firstSeen",
+                "currentCount",
+                "previousCount",
+                "multiplier"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "issues"
+        ],
+        "additionalProperties": false
+      },
+      "ByServiceResponse": {
+        "type": "object",
+        "properties": {
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "serviceName": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "errors": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "serviceName",
+                "total",
+                "errors"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "services"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -426,6 +633,197 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LogListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/error-rate": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/new-issues": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopIssuesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/top-issues": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopIssuesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/spikes": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpikesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/by-service": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ByServiceResponse"
                 }
               }
             }
