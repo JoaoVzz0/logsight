@@ -1,98 +1,98 @@
-# ADR 0007 — Docker Compose como entrega, cloud como demonstração
+# ADR 0007 — Docker Compose as delivery, cloud as demonstration
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O enunciado exige conteinerização Docker e código no GitHub, e lista
-"documentação e instruções de execução" entre os critérios de avaliação.
-Na prática, isso significa que **o avaliador vai clonar o repositório e
-rodar localmente**. Se esse caminho falhar, nenhum ambiente publicado
-compensa.
+The brief requires Docker containerization and code on GitHub, and lists
+"documentation and run instructions" among the evaluation criteria. In
+practice, this means **the evaluator will clone the repository and run it
+locally**. If that path fails, no published environment compensates for
+it.
 
-Ao mesmo tempo, publicar a aplicação tem valor demonstrativo real, e o
-projeto se beneficia de tratar infraestrutura como decisão explícita e não
-como detalhe de entrega.
+At the same time, publishing the application has real demonstrative value,
+and the project benefits from treating infrastructure as an explicit
+decision rather than a delivery detail.
 
-## Decisão
+## Decision
 
-**Prioridade um:** `docker compose up` funcionando do zero, sem passo manual
-além de copiar o `.env.example`. Serviços: `api`, `worker`, `web`,
-`postgres`, `redis`. Migrations e seed de dados de exemplo rodam na
-inicialização.
+**Priority one:** `docker compose up` working from scratch, with no manual
+step beyond copying `.env.example`. Services: `api`, `worker`, `web`,
+`postgres`, `redis`. Migrations and sample data seeding run at startup.
 
-**Prioridade dois:** documentação da arquitetura em nuvem no README, com
-diagrama, `Dockerfile` multi-stage já compatível com Cloud Run e pipeline de
-build descrito.
+**Priority two:** cloud architecture documentation in the README, with a
+diagram, a multi-stage `Dockerfile` already compatible with Cloud Run, and
+a described build pipeline.
 
-**Prioridade três:** deploy real, apenas se o escopo funcional estiver
-concluído.
+**Priority three:** actual deployment, only if the functional scope is
+complete.
 
-Se houver deploy, a topologia é:
+If there is a deployment, the topology is:
 
-| Componente | Escolha | Motivo |
+| Component | Choice | Reason |
 |---|---|---|
-| API + Web | Cloud Run | escala a zero, deploy direto de container |
-| Worker | Cloud Run com alocação de CPU contínua | processamento fora de requisição |
-| PostgreSQL | Neon ou Supabase | free tier e pooling de conexão |
+| API + Web | Cloud Run | scales to zero, direct container deploy |
+| Worker | Cloud Run with continuous CPU allocation | processing outside a request |
+| PostgreSQL | Neon or Supabase | free tier and connection pooling |
 | Redis | Upstash | free tier |
-| Arquivos | Cloud Storage | contorna o limite de upload (abaixo) |
+| Files | Cloud Storage | works around the upload limit (below) |
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Cloud SQL e Memorystore.** Seriam a escolha correta em produção e são o
-que o README indica como alvo. Descartados no escopo do desafio por custo:
-Cloud SQL não tem free tier e Memorystore parte de uma faixa incompatível
-com um projeto de avaliação. A decisão está registrada como consciente, não
-como desconhecimento do serviço gerenciado.
+**Cloud SQL and Memorystore.** Would be the right choice in production and
+are what the README points to as the target. Discarded within the
+challenge scope due to cost: Cloud SQL has no free tier and Memorystore
+starts at a tier incompatible with an evaluation project. The decision is
+recorded as conscious, not as unawareness of the managed service.
 
-**Infraestrutura como código (Terraform), VPC, load balancer.** Descartados
-por desproporção: em 3 dias, aumentam superfície sem serem executados por
-ninguém na avaliação.
+**Infrastructure as code (Terraform), VPC, load balancer.** Discarded as
+disproportionate: in 3 days, they increase surface area without being run
+by anyone during evaluation.
 
-**Publicar em vez de garantir o compose.** Descartado pela ordem de
-prioridade acima — inverter isso arrisca o requisito explícito para ganhar
-um bônus.
+**Publish instead of guaranteeing the compose stack.** Discarded per the
+priority order above — reversing it risks the explicit requirement to gain
+a bonus.
 
-## Restrições conhecidas do Cloud Run
+## Known Cloud Run constraints
 
-Três pontos que afetam o desenho e ficam registrados porque mudam a
-arquitetura, não só o deploy:
+Three points that affect the design and are recorded here because they
+change the architecture, not just the deployment:
 
-**Limite de tamanho de requisição.** Cloud Run limita requisições a 32 MB
-sobre HTTP/1; o limite não se aplica com HTTP/2, que precisa ser habilitado
-explicitamente no serviço. Um arquivo de log de algumas centenas de MB
-estoura o padrão.
+**Request size limit.** Cloud Run limits requests to 32 MB over HTTP/1;
+the limit does not apply with HTTP/2, which needs to be explicitly enabled
+on the service. A log file of a few hundred MB blows past the default.
 
-A saída arquiteturalmente correta não é aumentar o limite, e sim **gerar uma
-signed URL e fazer o navegador enviar o arquivo direto para o Cloud
-Storage**, com o backend lendo do bucket depois. Localmente, o upload segue
-direto para a API pelo compose.
+The architecturally correct way out is not to raise the limit, but to
+**generate a signed URL and have the browser upload the file directly to
+Cloud Storage**, with the backend reading from the bucket afterward.
+Locally, the upload goes straight to the API through the compose stack.
 
-**Alocação de CPU.** Cloud Run só garante CPU durante a requisição. Um
-worker processando um arquivo em background é estrangulado no modelo padrão,
-o que exige CPU sempre alocada, instância mínima, ou Cloud Run Jobs.
+**CPU allocation.** Cloud Run only guarantees CPU during a request. A
+worker processing a file in the background is throttled under the default
+model, which requires always-allocated CPU, a minimum instance, or Cloud
+Run Jobs.
 
-**Cold start.** Com escala a zero, o primeiro acesso paga latência de
-inicialização. Instância mínima resolve, ao custo de cobrança contínua.
+**Cold start.** With scale-to-zero, the first access pays startup latency.
+A minimum instance solves it, at the cost of continuous billing.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- O caminho de avaliação (`clone` + `up`) é o caminho mais testado.
-- As restrições do Cloud Run ficam documentadas como decisão de arquitetura,
-  não descobertas em deploy.
-- A escolha de banco e cache gerenciados externos é justificada por custo,
-  com o alvo de produção declarado.
+**Positive**
+- The evaluation path (`clone` + `up`) is the most tested path.
+- Cloud Run's constraints are documented as an architecture decision, not
+  discovered at deploy time.
+- The choice of external managed database and cache is justified by cost,
+  with the production target declared.
 
-**Negativas**
-- O ambiente publicado, se existir, não é idêntico ao local — o caminho de
-  upload difere (direto para a API versus signed URL para o bucket).
-- Sem IaC, o deploy não é reproduzível automaticamente.
+**Negative**
+- The published environment, if it exists, is not identical to the local
+  one — the upload path differs (direct to the API versus a signed URL to
+  the bucket).
+- Without IaC, the deployment is not automatically reproducible.
 
-## Revisitar quando
+## Revisit when
 
-O projeto sair do escopo de demonstração. Nesse ponto, Cloud SQL com IP
-privado, Memorystore, Terraform e ambientes separados deixam de ser
-desproporcionais e passam a ser requisito.
+The project moves out of demonstration scope. At that point, Cloud SQL
+with a private IP, Memorystore, Terraform and separate environments stop
+being disproportionate and become a requirement.

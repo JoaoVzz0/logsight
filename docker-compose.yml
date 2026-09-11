@@ -14,15 +14,6 @@ services:
       interval: 5s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - '6379:6379'
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      retries: 10
-
   api:
     build:
       context: .
@@ -30,28 +21,11 @@ services:
     command: node dist/http/server.js
     environment:
       DATABASE_URL: postgresql://logs:logs@postgres:5432/logs
-      REDIS_URL: redis://redis:6379
       API_PORT: 3333
     ports:
       - '3333:3333'
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    command: node dist/worker/main.js
-    environment:
-      DATABASE_URL: postgresql://logs:logs@postgres:5432/logs
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   web:

@@ -1,102 +1,107 @@
-# ADR 0003 — PostgreSQL com JSONB como armazenamento principal
+# ADR 0003 — PostgreSQL with JSONB as the primary store
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-Logs são frequentemente descritos como dados semi-estruturados, o que sugere
-um banco de documentos. A pergunta foi levantada explicitamente: faz mais
-sentido NoSQL?
+Logs are often described as semi-structured data, which suggests a
+document database. The question was raised explicitly: does NoSQL make
+more sense?
 
-A resposta depende menos do formato do dado e mais do **padrão de acesso**.
-E o padrão de acesso desta aplicação é analítico, não documental:
+The answer depends less on the data format and more on the **access
+pattern**. And this application's access pattern is analytical, not
+document-oriented:
 
-- contagem por bucket de tempo (`date_trunc`)
-- taxa de erro sobre o total na mesma janela
-- agrupamento por `fingerprint` com `count`, `min(timestamp)`, `max(timestamp)`
-- comparação entre janela atual e anterior, para detecção de picos
-- paginação por cursor ordenada por tempo
-- busca textual sobre a mensagem
+- count per time bucket (`date_trunc`)
+- error rate over the total in the same window
+- grouping by `fingerprint` with `count`, `min(timestamp)`, `max(timestamp)`
+- comparison between current and previous window, for spike detection
+- cursor-based pagination ordered by time
+- text search over the message
 
-Além disso, o dado não é uniformemente semi-estruturado. Conforme o ADR 0002,
-ele é **híbrido**: um núcleo estável presente em toda fonte, e uma cauda
-variável específica de cada origem.
+Furthermore, the data is not uniformly semi-structured. Per ADR 0002, it
+is **hybrid**: a stable core present in every source, and a variable tail
+specific to each origin.
 
-## Decisão
+## Decision
 
-**PostgreSQL** como store principal, com:
+**PostgreSQL** as the primary store, with:
 
-- **colunas tipadas** para o núcleo do `LogRecord`, com `severity_number` e
-  `severity_text` **nulos** quando a origem não traz severidade determinável
-  (ADR 0002, ADR 0005)
-- **JSONB** para `attributes`, com índice **GIN** para filtro por chave
-  arbitrária (`attributes->>'region' = 'us-east-1'`)
-- **TEXT** para `raw` — o registro original preservado verbatim (ADR 0002).
-  Nunca é consultado por chave, então não recebe índice e não precisa de JSONB
-- **BRIN** em `timestamp` — o dado é append-only e naturalmente ordenado por
-  tempo, então o índice fica ordens de grandeza menor que um B-tree
-  equivalente. Resolve varredura por janela de tempo; não entrega linhas em
-  ordem
-- **índice composto** `(service_name, severity_number, timestamp DESC)` para
-  o caminho de consulta mais comum da tabela
-- **B-tree** `(timestamp DESC, id DESC)` para a paginação por keyset da tela
-  de logs. A página "mais recentes primeiro" sem filtro, e cada página
-  seguinte por cursor, precisam de um índice que sirva a ordenação do keyset
-  diretamente — o BRIN não faz isso e o composto acima exige igualdade em
-  `service_name`/`severity_number` no prefixo. BRIN e B-tree coexistem: um
-  para range analítico, o outro para a ordenação do keyset (ADR 0009)
-- **`pg_trgm`** (ou `tsvector`, conforme medição) para busca textual em `body`
+- **typed columns** for the `LogRecord` core, with `severity_number` and
+  `severity_text` **nullable** when the source does not carry a
+  determinable severity (ADR 0002, ADR 0005)
+- **JSONB** for `attributes`, with a **GIN** index for filtering by
+  arbitrary key (`attributes->>'region' = 'us-east-1'`)
+- **TEXT** for `raw` — the original record preserved verbatim (ADR 0002).
+  Never queried by key, so it receives no index and needs no JSONB
+- **BRIN** on `timestamp` — the data is append-only and naturally ordered
+  by time, so the index ends up orders of magnitude smaller than an
+  equivalent B-tree. It solves scanning by time window; it does not
+  deliver rows in order
+- **composite index** `(service_name, severity_number, timestamp DESC)`
+  for the table's most common query path
+- **B-tree** `(timestamp DESC, id DESC)` for the keyset pagination of the
+  logs screen. The unfiltered "most recent first" page, and each
+  subsequent page by cursor, need an index that directly serves the
+  keyset ordering — BRIN does not do that and the composite index above
+  requires equality on `service_name`/`severity_number` as a prefix. BRIN
+  and B-tree coexist: one for analytical range scans, the other for
+  keyset ordering (ADR 0009)
+- **`pg_trgm`** (or `tsvector`, depending on measurement) for text search
+  over `body`
 
-**Redis** entra como segundo store, mas por necessidade arquitetural — fila
-de ingestão e cache de agregações — e não para preencher um requisito de
-"usar NoSQL". Ver ADR 0006.
+**Redis** enters as a second store, but out of architectural necessity —
+ingestion queue and aggregation cache — not to check a "use NoSQL" box.
+See ADR 0006.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**MongoDB.** A favor: ingestão de fontes heterogêneas sem decidir esquema
-antes, time-series collections nativas, sharding horizontal mais simples.
-Contra: as agregações centrais do dashboard viram pipelines verbosos, e a
-comparação entre janelas — que em SQL é uma window function de uma linha —
-fica significativamente mais trabalhosa. Busca textual é fraca fora do Atlas
-Search. E perderíamos a oportunidade de demonstrar estratégia de indexação,
-que é um dos critérios de avaliação (performance).
+**MongoDB.** In favor: ingesting heterogeneous sources without deciding a
+schema up front, native time-series collections, simpler horizontal
+sharding. Against: the dashboard's core aggregations turn into verbose
+pipelines, and the window-to-window comparison — which in SQL is a
+one-line window function — becomes significantly more laborious. Text
+search is weak outside Atlas Search. And we would lose the opportunity to
+demonstrate indexing strategy, which is one of the evaluation criteria
+(performance).
 
-**ClickHouse.** Tecnicamente é a resposta correta para volume alto — é o que
-sistemas de log reais usam. Descartado pelo prazo: exigiria modelagem de
-engine, chave de ordenação e política de merge que não daria para justificar
-com propriedade em 3 dias. Fica registrado como o caminho de evolução, não
-como alternativa rejeitada por mérito.
+**ClickHouse.** Technically the correct answer for high volume — it is
+what real logging systems use. Discarded due to the deadline: it would
+require engine modeling, an ordering key and a merge policy that could not
+be properly justified in 3 days. It is recorded as the evolution path, not
+as an alternative rejected on merit.
 
-**OpenSearch / Elasticsearch.** Excelente em busca textual e o padrão de
-mercado para exploração de log. Descartado por peso operacional
-desproporcional ao escopo e por tornar o `docker compose up` do avaliador
-pesado e frágil.
+**OpenSearch / Elasticsearch.** Excellent at text search and the market
+standard for log exploration. Discarded for operational weight
+disproportionate to the scope, and for making the evaluator's
+`docker compose up` heavy and fragile.
 
-Vale registrar o ponto que orientou a decisão: **nenhum sistema de log de
-referência usa banco de documentos**. Datadog, Loki, ClickHouse e OpenSearch
-são colunares ou índices invertidos. Se a resposta correta para escala fosse
-NoSQL, o candidato seria ClickHouse — não MongoDB.
+Worth recording the point that guided the decision: **no reference logging
+system uses a document database**. Datadog, Loki, ClickHouse and
+OpenSearch are columnar or inverted-index based. If the correct answer for
+scale were NoSQL, the candidate would be ClickHouse — not MongoDB.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Uma query SQL resolve cada agregação do dashboard, incluindo comparação de
-  janelas via window function.
-- `issues` (ADR 0005), com upsert por fingerprint, contador e estado
-  resolve/ignore, é modelagem relacional pura e ganha transação de graça.
-- Estratégia de índice explícita e mensurável via `EXPLAIN ANALYZE`.
+**Positive**
+- A single SQL query resolves each dashboard aggregation, including
+  window comparison via a window function.
+- `issues` (ADR 0005), with upsert by fingerprint, a counter and a
+  resolve/ignore state, is pure relational modeling and gets transactions
+  for free.
+- Explicit, measurable indexing strategy via `EXPLAIN ANALYZE`.
 
-**Negativas**
-- Escala vertical: acima de alguma ordem de grandeza de volume, Postgres
-  deixa de ser adequado para retenção longa de log.
-- JSONB com GIN tem custo de escrita e ocupa espaço relevante.
-- Particionamento por tempo não será implementado no escopo do desafio,
-  apenas documentado.
+**Negative**
+- Vertical scaling: past some order of magnitude of volume, Postgres
+  stops being adequate for long-term log retention.
+- JSONB with GIN has write cost and takes up significant space.
+- Time-based partitioning will not be implemented within the challenge
+  scope, only documented.
 
-## Revisitar quando
+## Revisit when
 
-O volume retido passar da ordem de dezenas de milhões de registros por
-período de consulta, ou quando a retenção exigir política de expiração
-automática. O caminho é particionamento nativo por dia primeiro; ClickHouse
-depois, se a agregação virar o gargalo.
+Retained volume passes the order of tens of millions of records per query
+period, or when retention requires an automatic expiration policy. The
+path is native daily partitioning first; ClickHouse afterward, if
+aggregation becomes the bottleneck.

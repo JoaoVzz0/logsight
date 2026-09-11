@@ -1,110 +1,115 @@
-# ADR 0004 — Adapters por fonte, com detecção automática de formato
+# ADR 0004 — Adapters per source, with automatic format detection
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O modelo canônico do ADR 0002 só tem valor se houver um caminho barato e
-isolado para traduzir cada formato de origem até ele. A tentação natural é
-espalhar condicionais por formato ao longo do pipeline de importação — o que
-faz o custo de adicionar uma fonte crescer com o tamanho do sistema.
+The canonical model from ADR 0002 only has value if there is a cheap,
+isolated path to translate each source format into it. The natural
+temptation is to spread per-format conditionals throughout the import
+pipeline — which makes the cost of adding a source grow with the size of
+the system.
 
-## Decisão
+## Decision
 
-Definir um **contrato único de adapter** e uma implementação por fonte:
+Define a **single adapter contract** and one implementation per source:
 
 ```ts
 interface LogAdapter {
   readonly sourceType: SourceType
-  /** confiança de 0 a 1 de que esta amostra pertence a este formato */
+  /** confidence from 0 to 1 that this sample belongs to this format */
   detect(sample: string[]): number
   parse(line: string): LogRecord | ParseError
 }
 ```
 
-O pipeline de importação não conhece nenhum formato: recebe um adapter e o
-aplica. Registrar uma nova fonte é adicionar uma implementação ao registry.
+The import pipeline knows no format: it receives an adapter and applies
+it. Registering a new source means adding an implementation to the
+registry.
 
-### Fontes no escopo
+### Sources in scope
 
-| Adapter | Entrada |
+| Adapter | Input |
 |---|---|
-| `gcp-cloud-logging` | JSON de `LogEntry` — `timestamp`, `severity`, `jsonPayload`/`textPayload`, `resource.labels`, `trace`, `insertId` |
-| `aws-cloudwatch` | export JSON — `logGroup`, `logStream`, `logEvents[].timestamp/message` |
-| `json-lines` | um objeto JSON por linha, com mapeamento heurístico de campos |
-| `nginx` / `syslog` | formatos de texto, via regex — entram se o prazo permitir |
+| `gcp-cloud-logging` | `LogEntry` JSON — `timestamp`, `severity`, `jsonPayload`/`textPayload`, `resource.labels`, `trace`, `insertId` |
+| `aws-cloudwatch` | JSON export — `logGroup`, `logStream`, `logEvents[].timestamp/message` |
+| `json-lines` | one JSON object per line, with heuristic field mapping |
+| `nginx` / `syslog` | text formats, via regex — included if time permits |
 
-Três adapters sólidos e um contrato claro valem mais que oito parciais.
+Three solid adapters and one clear contract are worth more than eight
+partial ones.
 
-### Próxima fonte
+### Next source
 
-syslog RFC5424 é a extensão natural deste conjunto. O contrato único de
-adapter definido acima foi desenhado exatamente para isso: adicioná-lo é um
-novo arquivo em `infra/adapters/` mais um teste de fixture, sem tocar no
-pipeline de importação nem no domínio — é o retorno concreto da decisão de
-portas.
+syslog RFC5424 is the natural extension of this set. The single adapter
+contract defined above was designed exactly for this: adding it is one new
+file in `infra/adapters/` plus a fixture test, without touching the import
+pipeline or the domain — this is the concrete return on the ports
+decision.
 
-A única peça de normalização que syslog acrescenta é o mapeamento da
-severidade PRI (0–7) para as seis bandas OTel. Ela não foi implementada
-porque nenhuma fonte no escopo atual — GCP, CloudWatch, JSON Lines, nginx —
-produz severidade nesse formato, e uma tabela de mapeamento sem adapter que a
-consuma é peso morto.
+The only piece of normalization that syslog adds is mapping the PRI
+severity (0–7) to the six OTel bands. It was not implemented because no
+source currently in scope — GCP, CloudWatch, JSON Lines, nginx — produces
+severity in this format, and a mapping table with no adapter consuming it
+is dead weight.
 
-Isto é fonte futura, não dívida técnica: nenhum código atual depende de um
-adapter de syslog nem do mapeamento PRI, e a linha correspondente na tabela
-de severidade do ADR 0002 está marcada como ainda não suportada.
+This is a future source, not technical debt: no current code depends on a
+syslog adapter or the PRI mapping, and the corresponding row in the
+severity table of ADR 0002 is marked as not yet supported.
 
-### Detecção de formato
+### Format detection
 
-Na importação, os primeiros registros do arquivo são oferecidos ao `detect`
-de cada adapter e vence o de maior confiança. O usuário pode **sobrescrever**
-a escolha na tela de upload — a detecção é conveniência, não autoridade.
+At import time, the file's first records are offered to each adapter's
+`detect`, and the highest-confidence one wins. The user can **override**
+the choice on the upload screen — detection is a convenience, not an
+authority.
 
-### Erros de parse não abortam a importação
+### Parse errors do not abort the import
 
-Uma linha inválida vira `ParseError`, é contabilizada e registrada com o
-número da linha e o conteúdo original. A importação segue. O resultado do
-job informa quantos registros entraram e quantos falharam.
+An invalid line becomes a `ParseError`, is counted and recorded with its
+line number and original content. The import continues. The job result
+reports how many records were ingested and how many failed.
 
-Isso é deliberado: arquivos de log reais têm linhas truncadas, mistura de
-formatos e encoding inconsistente. Um importador que aborta no primeiro erro
-é inútil na prática.
+This is deliberate: real log files have truncated lines, mixed formats and
+inconsistent encoding. An importer that aborts on the first error is
+useless in practice.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Um parser configurável por regex, definido pelo usuário.** Mais flexível e
-sem código por fonte. Descartado por empurrar complexidade para o usuário e
-por não resolver bem formatos JSON aninhados, que são a maioria dos casos
-relevantes (GCP e AWS).
+**A user-defined, configurable regex parser.** More flexible and with no
+per-source code. Discarded for pushing complexity onto the user and for
+not handling nested JSON formats well, which are the majority of relevant
+cases (GCP and AWS).
 
-**Exigir que o usuário declare o formato no upload, sem detecção.** Mais
-simples de implementar. Descartado por piorar a UX sem ganho arquitetural — a
-detecção custa pouco, já que a leitura em stream (ADR 0006) tem as primeiras
-linhas em mãos de qualquer forma.
+**Require the user to declare the format at upload, with no detection.**
+Simpler to implement. Discarded for worsening the UX with no architectural
+gain — detection is cheap, since streaming reads (ADR 0006) already have
+the first lines in hand anyway.
 
-**Usar um coletor pronto (Vector, Fluent Bit) como camada de normalização.**
-Seria a escolha correta em produção. Descartado no escopo do desafio porque a
-normalização é justamente o núcleo que está sendo avaliado — terceirizá-la
-esvaziaria o exercício.
+**Use an off-the-shelf collector (Vector, Fluent Bit) as the normalization
+layer.** Would be the right choice in production. Discarded within the
+challenge scope because normalization is precisely the core being
+evaluated — outsourcing it would hollow out the exercise.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Custo de adicionar uma fonte é constante e isolado: uma classe e um teste.
-- Cada adapter é testável em unidade, com amostras reais como fixture.
-- O domínio e a UI nunca conhecem formato de origem.
+**Positive**
+- The cost of adding a source is constant and isolated: one class and one
+  test.
+- Each adapter is unit-testable, with real samples as fixtures.
+- The domain and the UI never know about the source format.
 
-**Negativas**
-- Detecção heurística pode errar em arquivos ambíguos; mitigado pelo override
-  manual.
-- Exportações reais de GCP e AWS têm variações que três dias de amostra não
-  cobrem. O `raw` do ADR 0002 permite reprocessar quando um adapter for
-  corrigido.
+**Negative**
+- Heuristic detection can be wrong on ambiguous files; mitigated by the
+  manual override.
+- Real GCP and AWS exports have variations that three days of sampling do
+  not cover. The `raw` field from ADR 0002 allows reprocessing once an
+  adapter is fixed.
 
-## Revisitar quando
+## Revisit when
 
-O número de fontes crescer a ponto de a detecção por confiança ficar
-ambígua, ou quando a ingestão passar a ser contínua em vez de por arquivo —
-nesse cenário o formato vem declarado no canal e a detecção deixa de ser
-necessária.
+The number of sources grows to the point where confidence-based detection
+becomes ambiguous, or when ingestion becomes continuous instead of
+file-based — in that scenario the format comes declared on the channel and
+detection is no longer necessary.

@@ -1,39 +1,41 @@
-# ADR 0006 — Ingestão assíncrona com BullMQ sobre Redis
+# ADR 0006 — Asynchronous ingestion with BullMQ over Redis
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-A importação de um arquivo de log é uma operação longa: ler, detectar
-formato, normalizar linha a linha, inserir em lote e atualizar issues. Fazer
-isso dentro da requisição HTTP de upload é inviável — estoura timeout,
-bloqueia o cliente e não sobrevive a um restart.
+Importing a log file is a long-running operation: read, detect format,
+normalize line by line, batch insert and update issues. Doing this inside
+the upload HTTP request is not viable — it blows the timeout, blocks the
+client and does not survive a restart.
 
-A interface precisa mostrar progresso durante o processamento:
+The interface needs to show progress during processing:
 
-> Processando… 340 mil de 1,2 milhão de linhas · 28% · 4 erros de parse
+> Processing… 340k of 1.2 million lines · 28% · 4 parse errors
 
-Isso define o requisito real: não basta entregar uma mensagem a um worker.
-É preciso um **job com estado consultável**.
+This defines the real requirement: it is not enough to hand a message to
+a worker. A **job with queryable state** is needed.
 
-## Decisão
+## Decision
 
-**BullMQ sobre Redis**, com um serviço worker separado.
+**BullMQ over Redis**, with a separate worker service.
 
-### Fluxo
+### Flow
 
-1. `POST /imports` grava o arquivo, cria o job e responde `202` com `job_id`
-2. O worker lê o arquivo em **stream** (`readline`) — nunca carrega inteiro
-   em memória
-3. O adapter (ADR 0004) normaliza em lotes de ~5 mil registros
-4. Inserção em massa via `COPY` ou multi-row insert
-5. Upsert de `issues` (ADR 0005) no mesmo lote e na mesma transação
-6. `job.updateProgress()` a cada lote; o frontend acompanha por polling
+1. `POST /imports` saves the file, creates the job and responds `202` with
+   `job_id`
+2. The worker reads the file in **stream** (`readline`) — never loads it
+   entirely into memory
+3. The adapter (ADR 0004) normalizes in batches of ~5 thousand records
+4. Bulk insertion via `COPY` or multi-row insert
+5. Upsert of `issues` (ADR 0005) in the same batch and the same
+   transaction
+6. `job.updateProgress()` on every batch; the frontend follows via polling
 
-### Porta abstrata
+### Abstract port
 
-A fila é consumida por interface, não diretamente:
+The queue is consumed through an interface, not directly:
 
 ```ts
 interface JobQueue {
@@ -43,79 +45,82 @@ interface JobQueue {
 }
 ```
 
-Há uma implementação (`BullMQJobQueue`). A interface existe para que trocar
-o backend de fila não toque no domínio.
+There is one implementation (`BullMQJobQueue`). The interface exists so
+that swapping the queue backend does not touch the domain.
 
-## Alternativas consideradas
+## Alternatives considered
 
 ### Cloud Tasks
 
-Avaliado por ser o primitivo gerenciado natural no GCP para disparo de job
-HTTP. **Descartado por dois motivos.**
+Evaluated as the natural managed GCP primitive for triggering an HTTP job.
+**Discarded for two reasons.**
 
-O primeiro é prático e decisivo: o Google **não fornece emulador oficial de
-Cloud Tasks**. As opções são implementações de terceiros, criadas
-justamente para preencher essa lacuna. Colocar uma dependência não oficial no
-caminho crítico do `docker compose up` do avaliador é risco desnecessário
-(ver ADR 0007).
+The first is practical and decisive: Google **does not provide an
+official Cloud Tasks emulator**. The options are third-party
+implementations, created precisely to fill that gap. Placing an unofficial
+dependency on the critical path of the evaluator's `docker compose up` is
+an unnecessary risk (see ADR 0007).
 
-O segundo é de adequação: Cloud Tasks entrega uma requisição HTTP com retry.
-Não oferece estado de job, progresso nem listagem — que é exatamente o que a
-tela de importação precisa.
+The second is about fit: Cloud Tasks delivers an HTTP request with retry.
+It offers no job state, progress or listing — which is exactly what the
+import screen needs.
 
 ### Cloud Pub/Sub
 
-Melhor situação que Cloud Tasks no primeiro ponto: **tem emulador oficial**
-(`gcloud beta emulators pubsub`), que rodaria no compose sem problema.
+Better standing than Cloud Tasks on the first point: it **has an official
+emulator** (`gcloud beta emulators pubsub`), which would run in the
+compose stack without issue.
 
-Descartado pelo segundo ponto, que é mais forte. Pub/Sub é entrega de
-mensagem, não gestão de job: sem progresso, sem estado consultável, sem
-histórico de execuções. Reimplementaríamos essa camada por cima — ou seja,
-metade do BullMQ.
+Discarded on the second point, which is stronger. Pub/Sub is message
+delivery, not job management: no progress, no queryable state, no
+execution history. We would end up reimplementing that layer on top —
+that is, half of BullMQ.
 
-Há ainda a questão do *ack deadline*, cujo teto é de 10 minutos. Uma
-importação grande que ultrapasse esse tempo tem a mensagem reentregue e o
-arquivo processado duas vezes. É contornável com chunking e idempotência,
-mas é complexidade que não se paga neste escopo.
+There is also the *ack deadline* issue, capped at 10 minutes. A large
+import that exceeds that time gets its message redelivered and the file
+processed twice. It is workaroundable with chunking and idempotency, but
+that is complexity that does not pay off in this scope.
 
-**Importante:** Pub/Sub não é o primitivo errado — é o primitivo de outra
-fase do problema. Ver "Evolução" abaixo.
+**Important:** Pub/Sub is not the wrong primitive — it is the primitive
+for a different phase of the problem. See "Evolution" below.
 
-### Processar dentro da própria API, em background
+### Process within the API itself, in the background
 
-Sem Redis, sem worker separado. Descartado: o processamento competiria por
-CPU com as requisições HTTP, não sobreviveria a restart, e não escalaria
-horizontalmente de forma independente da API.
+No Redis, no separate worker. Discarded: processing would compete for CPU
+with HTTP requests, would not survive a restart, and would not scale
+horizontally independently of the API.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Progresso, estado, retry com backoff e concorrência vêm prontos.
-- Worker escala independente da API.
-- Redis atende ao requisito de NoSQL da vaga por necessidade arquitetural —
-  serve também como cache das agregações do dashboard — e não como item de
-  checklist.
+**Positive**
+- Progress, state, retry with backoff and concurrency come out of the box.
+- The worker scales independently of the API.
+- Redis satisfies the job posting's NoSQL requirement out of architectural
+  necessity — it also serves as a cache for dashboard aggregations — and
+  not as a checklist item.
 
-**Negativas**
-- Mais um serviço no compose e mais uma dependência operacional.
-- Redis como broker exige atenção a persistência; perda de fila em restart é
-  aceitável no escopo, já que o job é reexecutável a partir do arquivo.
-- Em Cloud Run, worker em background exige cuidado com o modelo de alocação
-  de CPU (ver ADR 0007).
+**Negative**
+- One more service in the compose stack and one more operational
+  dependency.
+- Redis as a broker requires attention to persistence; losing the queue on
+  restart is acceptable within scope, since the job is rerunnable from the
+  file.
+- On Cloud Run, a background worker requires care with the CPU allocation
+  model (see ADR 0007).
 
-## Evolução
+## Evolution
 
-O caminho natural da plataforma é deixar de importar arquivo e passar a
-ingerir continuamente: um **Log Sink** do Cloud Logging publicando em um
-tópico **Pub/Sub**, com o serviço consumindo em tempo real.
+The platform's natural path is to stop importing files and start
+ingesting continuously: a **Log Sink** from Cloud Logging publishing to a
+**Pub/Sub** topic, with the service consuming in real time.
 
-Nesse cenário o primitivo correto passa a ser Pub/Sub — stream de eventos
-pequenos, sem estado por mensagem, com fan-out e retenção. A porta `JobQueue`
-acima existe para que essa transição seja uma implementação nova, não uma
-reescrita.
+In that scenario the correct primitive becomes Pub/Sub — a stream of small
+events, no per-message state, with fan-out and retention. The `JobQueue`
+port above exists so that this transition is a new implementation, not a
+rewrite.
 
-## Revisitar quando
+## Revisit when
 
-A ingestão deixar de ser por upload de arquivo, ou quando o volume exigir
-mais de um worker concorrente sobre o mesmo arquivo — nesse ponto o job
-precisa ser fatiado por offset, e a coordenação muda.
+Ingestion stops being by file upload, or when volume requires more than
+one concurrent worker over the same file — at that point the job needs to
+be sliced by offset, and coordination changes.

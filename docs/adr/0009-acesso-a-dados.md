@@ -1,28 +1,29 @@
-# ADR 0009 — Prisma como camada de acesso, com SQL cru nas agregações
+# ADR 0009 — Prisma as the access layer, with raw SQL in aggregations
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-O ADR 0003 decidiu **qual** banco usar. Este decide **como** acessá-lo, que é
-uma questão separada e com trade-offs próprios.
+ADR 0003 decided **which** database to use. This one decides **how** to
+access it, which is a separate question with its own trade-offs.
 
-Há dois perfis de acesso muito distintos no sistema:
+There are two very distinct access profiles in the system:
 
-- **Escrita e consulta simples** — inserção em lote na ingestão, upsert de
-  issue por fingerprint, listagem paginada de logs com filtro. Alto volume de
-  chamadas, formato previsível.
-- **Agregação analítica** — as consultas do dashboard. Poucas em número
-  (quatro ou cinco), mas com necessidades que a API de um ORM não expressa.
+- **Write and simple query** — batch insertion at ingestion, issue upsert
+  by fingerprint, paginated log listing with filters. High call volume,
+  predictable shape.
+- **Analytical aggregation** — the dashboard queries. Few in number (four
+  or five), but with needs that an ORM's API does not express.
 
-## Decisão
+## Decision
 
-**Prisma como padrão**, com SQL cru pontual onde o client não alcança.
+**Prisma as the default**, with targeted raw SQL where the client falls
+short.
 
-### Client nativo — o padrão do projeto
+### Native client — the project's default
 
-Cobre a grande maioria do acesso a dados:
+Covers the vast majority of data access:
 
 ```ts
 await prisma.issue.upsert({
@@ -32,14 +33,14 @@ await prisma.issue.upsert({
 })
 ```
 
-Também: `createMany` na inserção em lote da ingestão, e a paginação por keyset
-da tabela de logs. Nesses casos o nativo é mais legível que SQL escrito à mão e
-igualmente eficiente.
+Also: `createMany` for batch insertion at ingestion, and the logs table's
+keyset pagination. In these cases, native is more readable than
+hand-written SQL and equally efficient.
 
-O keyset **não** usa o argumento `cursor` do Prisma: ele compila para
-subconsultas correlacionadas e uma varredura sequencial. Usa o comparador
-composto montado com os operadores do query builder, na forma sargável que
-mantém o limite de `timestamp` como range do índice:
+The keyset does **not** use Prisma's `cursor` argument: it compiles to
+correlated subqueries and a sequential scan. It uses the composite
+comparator built with the query builder's operators, in the sargable form
+that keeps the `timestamp` bound as an index range:
 
 ```ts
 await prisma.logRecord.findMany({
@@ -54,29 +55,30 @@ await prisma.logRecord.findMany({
 })
 ```
 
-O `OFFSET 0` fixo que o `findMany` do Prisma sempre anexa ao SQL não é o
-`OFFSET` que a regra de performance proíbe — aquele cresce com a profundidade
-da página; este é constante e o `WHERE` do keyset é o que avança. Ver
-`@.claude/rules/performance.md`.
+The fixed `OFFSET 0` that Prisma's `findMany` always appends to the SQL is
+not the `OFFSET` the performance rule prohibits — that one grows with page
+depth; this one is constant, and the keyset `WHERE` is what advances the
+page. See `@.claude/rules/performance.md`.
 
-### `$queryRaw` — a exceção, restrita a `analytics`
+### `$queryRaw` — the exception, restricted to `analytics`
 
-Quatro capacidades exigidas pelo dashboard que o client não expressa:
+Four capabilities required by the dashboard that the client does not
+express:
 
-| Necessidade | Onde é usada |
+| Need | Where it is used |
 |---|---|
-| `GROUP BY` por expressão (`date_trunc`) | série temporal de eventos |
-| Agregação condicional (`count(*) FILTER`) | taxa de erro no mesmo passe |
-| Window function (`LAG`, CTE) | detecção de pico entre janelas |
-| `generate_series` + `LEFT JOIN` | buckets sem evento no gráfico |
+| `GROUP BY` by expression (`date_trunc`) | event time series |
+| Conditional aggregation (`count(*) FILTER`) | error rate in the same pass |
+| Window function (`LAG`, CTE) | spike detection between windows |
+| `generate_series` + `LEFT JOIN` | eventless buckets in the chart |
 
-Interpolação com template tagged (`` $queryRaw`... ${value}` ``) é
-parametrizada pelo Prisma. **`$queryRawUnsafe` não é usado em nenhum ponto.**
+Interpolation with a tagged template (`` $queryRaw`... ${value}` ``) is
+parameterized by Prisma. **`$queryRawUnsafe` is not used anywhere.**
 
-### Validação da saída com Zod
+### Output validation with Zod
 
-Retorno de `$queryRaw` é tipado apenas por declaração — o Prisma não verifica
-nada em runtime. Toda query crua valida a saída:
+The return of `$queryRaw` is typed only by declaration — Prisma checks
+nothing at runtime. Every raw query validates its output:
 
 ```ts
 const ErrorRateRow = z.object({
@@ -88,68 +90,70 @@ const ErrorRateRow = z.object({
 return z.array(ErrorRateRow).parse(rows)
 ```
 
-Isso não é formalidade. `count(*)` no PostgreSQL retorna `BigInt`, que
-`JSON.stringify` não serializa — o `z.coerce` resolve na fronteira, uma vez,
-em vez de produzir erro em runtime na resposta HTTP.
+This is not formality. `count(*)` in PostgreSQL returns `BigInt`, which
+`JSON.stringify` does not serialize — `z.coerce` resolves it at the
+boundary, once, instead of producing a runtime error in the HTTP response.
 
-O schema de saída de cada query object **é** o contrato da API: uma
-definição serve como validação no banco, tipo no backend e tipo no frontend.
+The output schema of each query object **is** the API contract: one
+definition serves as database validation, backend type and frontend type.
 
-No client nativo o tipo já vem inferido do schema, e validar novamente seria
-redundância — Zod se aplica apenas às queries cruas.
+In the native client, the type is already inferred from the schema, and
+validating again would be redundant — Zod applies only to raw queries.
 
-### Índices fora do schema Prisma
+### Indexes outside the Prisma schema
 
-BRIN e GIN (ADR 0003) não são expressos pelo schema do Prisma e são criados
-em migration SQL manual, com comentário justificando cada um. Ficam
-explícitos no repositório em vez de implícitos na ferramenta.
+BRIN and GIN (ADR 0003) are not expressed by the Prisma schema and are
+created in a manual SQL migration, with a comment justifying each one.
+They stay explicit in the repository instead of implicit in the tool.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Kysely.** Query builder tipado, que daria SQL com inferência de tipos
-derivada do schema e cobriria o espaço intermediário entre client e raw.
-Tecnicamente atraente. **Descartada por risco de prazo:** é ferramenta não
-dominada pela equipe, e introduzir aprendizado novo no caminho crítico de um
-prazo de três dias é o mesmo risco que motivou outras decisões deste
-conjunto.
+**Kysely.** A typed query builder that would give SQL with type inference
+derived from the schema and would cover the middle ground between the
+client and raw SQL. Technically appealing. **Discarded due to schedule
+risk:** it is a tool the team does not already know, and introducing new
+learning onto the critical path of a three-day deadline is the same risk
+that motivated other decisions in this set.
 
-**TypeORM.** Descartado em favor do Prisma: migrations mais confiáveis,
-inferência de tipos melhor e histórico de manutenção mais estável.
+**TypeORM.** Discarded in favor of Prisma: more reliable migrations,
+better type inference and a more stable maintenance track record.
 
-**SQL cru em todo o acesso**, sem ORM. Daria controle total e removeria o
-mapper do ADR 0008. Descartado porque perderia migrations versionadas,
-tipagem gerada e o upsert legível — sem ganho onde o client já é adequado.
+**Raw SQL for all access**, no ORM. Would give full control and remove the
+mapper from ADR 0008. Discarded because it would lose versioned
+migrations, generated typing and the readable upsert — with no gain where
+the client is already adequate.
 
-**Client nativo em tudo, sem SQL cru.** Exigiria múltiplas consultas por
-bucket de tempo e agregação em JavaScript. Descartado: transferiria trabalho
-analítico do banco para a aplicação, contra o critério de performance.
+**Native client for everything, no raw SQL.** Would require multiple
+queries per time bucket and aggregation in JavaScript. Discarded: it would
+shift analytical work from the database to the application, against the
+performance criterion.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Migrations versionadas e tipos gerados no caminho principal.
-- O banco faz o trabalho analítico, e não a aplicação.
-- Validação em runtime na fronteira do banco — garantia mais forte que a
-  promessa de tipo em tempo de compilação, justamente onde o tipo é
-  declarado à mão.
+**Positive**
+- Versioned migrations and generated types on the main path.
+- The database does the analytical work, not the application.
+- Runtime validation at the database boundary — a stronger guarantee than
+  the compile-time type promise, precisely where the type is declared by
+  hand.
 
-**Negativas**
-- Dois estilos de acesso convivem; a convenção precisa estar clara (SQL cru
-  apenas em `analytics/queries/`).
-- As queries cruas são específicas do PostgreSQL, o que amarra a portabilidade
-  do lado de leitura. Trade-off assumido.
-- `attributes` (JSONB) é tipado como `Prisma.JsonValue`, fraco por natureza;
-  refinado com Zod na leitura.
+**Negative**
+- Two access styles coexist; the convention needs to be clear (raw SQL
+  only in `analytics/queries/`).
+- The raw queries are PostgreSQL-specific, which ties down read-side
+  portability. Trade-off accepted.
+- `attributes` (JSONB) is typed as `Prisma.JsonValue`, weak by nature;
+  refined with Zod on read.
 
-## Ponto em aberto, a decidir por medição
+## Open point, to be decided by measurement
 
-Filtro por chave dentro de JSONB tem suporte no client
-(`attributes: { path: [...], equals: ... }`), mas o plano de execução nem
-sempre aproveita o índice GIN. A implementação começa pelo nativo e migra
-para `$queryRaw` se `EXPLAIN ANALYZE` indicar sequential scan — decisão por
-medição, não por antecipação.
+Filtering by key inside JSONB is supported by the client
+(`attributes: { path: [...], equals: ... }`), but the execution plan does
+not always take advantage of the GIN index. The implementation starts with
+the native client and migrates to `$queryRaw` if `EXPLAIN ANALYZE`
+indicates a sequential scan — a decision by measurement, not anticipation.
 
-## Revisitar quando
+## Revisit when
 
-O número de queries cruas crescer além do módulo `analytics`, sinal de que um
-query builder tipado passaria a compensar o custo de adoção.
+The number of raw queries grows beyond the `analytics` module, a sign that
+a typed query builder would start to be worth its adoption cost.

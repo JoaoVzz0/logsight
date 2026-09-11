@@ -1,105 +1,106 @@
-# ADR 0002 — Modelo canônico de log baseado em OpenTelemetry
+# ADR 0002 — Canonical log model based on OpenTelemetry
 
-- **Status:** Aceita
-- **Data:** 2026-09-08
+- **Status:** Accepted
+- **Date:** 2026-09-08
 
-## Contexto
+## Context
 
-A plataforma precisa importar logs de origens diferentes — Cloud Logging do
-GCP, CloudWatch da AWS, nginx, syslog, JSON Lines genérico. Cada uma tem seu
-próprio vocabulário: o GCP chama de `severity` uma string, o syslog usa um
-inteiro de 0 a 7, o CloudWatch nem sempre traz severidade explícita.
+The platform needs to import logs from different sources — GCP Cloud
+Logging, AWS CloudWatch, nginx, syslog, generic JSON Lines. Each has its
+own vocabulary: GCP calls `severity` a string, syslog uses an integer from
+0 to 7, CloudWatch does not always carry an explicit severity.
 
-Sem um modelo comum, cada tela e cada agregação teria que conhecer todos os
-formatos. Filtrar por "erros" viraria um `if` por fonte, e o dashboard não
-conseguiria comparar dados de origens distintas na mesma série.
+Without a common model, every screen and every aggregation would have to
+know every format. Filtering by "errors" would turn into an `if` per
+source, and the dashboard would not be able to compare data from distinct
+origins in the same series.
 
-## Decisão
+## Decision
 
-Adotar um **modelo canônico único**, com o
+Adopt a **single canonical model**, using the
 [OpenTelemetry Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/)
-como referência em vez de um formato próprio.
+as the reference instead of a custom format.
 
 ```
 LogRecord
-├─ timestamp          -- event time, conforme a origem
-├─ observed_at        -- quando a plataforma ingeriu
-├─ severity_number    -- escala OTel (1–24), normalizada
-├─ severity_text      -- rótulo original preservado
-├─ body               -- mensagem
+├─ timestamp          -- event time, as reported by the source
+├─ observed_at        -- when the platform ingested it
+├─ severity_number    -- OTel scale (1–24), normalized
+├─ severity_text      -- original label preserved
+├─ body               -- message
 ├─ service_name       ┐
 ├─ host               ├─ resource attributes
 ├─ environment        ┘
-├─ trace_id, span_id  -- correlação distribuída
-├─ attributes  JSONB  -- cauda variável, específica da fonte
-├─ source_type        -- id do adapter de origem (ver ADR 0004)
-├─ fingerprint        -- ver ADR 0005
-└─ raw                -- texto original do registro, verbatim, sem perda
+├─ trace_id, span_id  -- distributed correlation
+├─ attributes  JSONB  -- variable tail, source-specific
+├─ source_type        -- id of the source adapter (see ADR 0004)
+├─ fingerprint        -- see ADR 0005
+└─ raw                -- original record text, verbatim, lossless
 ```
 
-A separação entre **núcleo estável** (colunas tipadas) e **cauda variável**
-(`attributes` em JSONB) é o eixo do modelo, e é o que sustenta a decisão de
-banco no ADR 0003.
+The separation between **stable core** (typed columns) and **variable
+tail** (`attributes` in JSONB) is the axis of the model, and it is what
+underpins the database decision in ADR 0003.
 
-O `source_type` é o identificador do adapter que produziu o registro —
-`gcp-cloud-logging`, `aws-cloudwatch`, `json-lines`, `nginx` (ADR 0004). Os
-ids dos adapters são a fonte única desses valores; este documento não mantém
-uma lista paralela e não os redefine.
+`source_type` is the identifier of the adapter that produced the record —
+`gcp-cloud-logging`, `aws-cloudwatch`, `json-lines`, `nginx` (ADR 0004).
+Adapter ids are the single source of these values; this document does not
+maintain a parallel list and does not redefine them.
 
-### Normalização de severidade
+### Severity normalization
 
-Cada adapter é responsável por mapear a severidade da origem para a escala
-OTel, preservando o rótulo original em `severity_text`:
+Each adapter is responsible for mapping the source's severity to the OTel
+scale, preserving the original label in `severity_text`:
 
-| Fonte | Campo de origem | Exemplo |
+| Source | Source field | Example |
 |---|---|---|
 | GCP Cloud Logging | `severity` (string) | `DEFAULT`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
-| AWS CloudWatch | não padronizado | heurística sobre a mensagem ou o payload |
-| Syslog RFC5424 — fonte futura, ainda não suportada (ver ADR 0004) | PRI (0–7) | `emerg` … `debug` |
-| nginx | canal | `access` → INFO, `error` → ERROR |
+| AWS CloudWatch | not standardized | heuristic over the message or payload |
+| Syslog RFC5424 — future source, not yet supported (see ADR 0004) | PRI (0–7) | `emerg` … `debug` |
+| nginx | channel | `access` → INFO, `error` → ERROR |
 
-### Preservação do original
+### Preserving the original
 
-O campo `raw` guarda o texto original do registro, verbatim — a linha como
-veio da fonte, sem reserialização, preservando formatação e ordem de chaves.
-Isso custa espaço, mas garante que um erro de parser não destrua informação e
-permite reprocessar uma importação com um adapter corrigido, sem pedir o
-arquivo de novo. Como esse valor é persistido é detalhe de infraestrutura
-(ADR 0009), não do modelo canônico.
+The `raw` field stores the original record text, verbatim — the line as it
+came from the source, without reserialization, preserving formatting and
+key order. This costs space, but guarantees that a parser bug does not
+destroy information, and it allows reprocessing an import with a fixed
+adapter, without asking for the file again. How this value is persisted is
+an infrastructure detail (ADR 0009), not part of the canonical model.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Formato próprio, desenhado sob medida.** Seria menor e mais direto ao
-ponto. Descartado porque adotar um padrão de indústria traz semântica já
-resolvida (a escala de severidade, a separação entre resource e log
-attributes, os campos de correlação) e torna a plataforma compatível com
-qualquer coletor OTel no futuro, sem migração de esquema.
+**Custom format, purpose-built.** Would be smaller and more to the point.
+Discarded because adopting an industry standard brings already-resolved
+semantics (the severity scale, the separation between resource and log
+attributes, the correlation fields) and makes the platform compatible with
+any OTel collector in the future, without a schema migration.
 
-**Elastic Common Schema (ECS).** Também é um padrão maduro e bem
-documentado. Descartado por ser mais amarrado ao ecossistema Elastic e por
-ter uma superfície de campos muito maior do que este escopo justifica.
+**Elastic Common Schema (ECS).** Also a mature, well-documented standard.
+Discarded for being more tied to the Elastic ecosystem and for having a
+field surface much larger than this scope justifies.
 
-**Guardar apenas o JSON bruto e interpretar na leitura.** Ingestão
-trivialmente simples, mas empurra todo o custo para a query: cada filtro
-por severidade viraria uma expressão sobre JSON, sem índice eficiente, e o
-dashboard ficaria inviável em volume.
+**Store only the raw JSON and interpret it at read time.** Trivially
+simple ingestion, but pushes all the cost onto the query: every severity
+filter would become a JSON expression with no efficient index, and the
+dashboard would become unviable at volume.
 
-## Consequências
+## Consequences
 
-**Positivas**
-- Filtros, buscas e agregações funcionam igual para qualquer fonte.
-- Adicionar uma nova origem não toca no domínio nem na UI (ver ADR 0004).
-- `raw` permite reprocessamento sem reimportação.
+**Positive**
+- Filters, searches and aggregations work the same regardless of source.
+- Adding a new source does not touch the domain or the UI (see ADR 0004).
+- `raw` allows reprocessing without reimporting.
 
-**Negativas**
-- Custo de armazenamento maior por guardar original e normalizado.
-- Normalizar severidade de fontes sem campo explícito (CloudWatch) exige
-  heurística, que pode errar. Mitigado por permitir override no import e
-  por manter o `raw`.
+**Negative**
+- Higher storage cost from keeping both original and normalized forms.
+- Normalizing severity from sources without an explicit field (CloudWatch)
+  requires a heuristic, which can be wrong. Mitigated by allowing an
+  override at import time and by keeping `raw`.
 
-## Revisitar quando
+## Revisit when
 
-O OpenTelemetry evoluir o data model de logs de forma incompatível, ou
-quando a plataforma passar a receber telemetria via OTLP nativamente — nesse
-caso o modelo canônico deixa de ser tradução e passa a ser o formato de
-entrada direto.
+OpenTelemetry evolves the logs data model in an incompatible way, or when
+the platform starts receiving telemetry natively via OTLP — in that case
+the canonical model stops being a translation and becomes the direct
+input format.
