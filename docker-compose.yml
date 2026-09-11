@@ -18,7 +18,11 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: node dist/http/server.js
+    command: >
+      sh -c "
+      node_modules/.bin/prisma migrate deploy &&
+      node_modules/.bin/tsx src/http/server.ts
+      "
     environment:
       DATABASE_URL: postgresql://logs:logs@postgres:5432/logs
       API_PORT: 3333
@@ -36,6 +40,23 @@ services:
       - '5173:80'
     depends_on:
       - api
+
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles: ['seed']
+    environment:
+      DATABASE_URL: postgresql://logs:logs@postgres:5432/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+      node_modules/.bin/prisma migrate deploy &&
+      node_modules/.bin/tsx src/scripts/generate-logs.ts --lines 500 --format json-lines --out /tmp/seed.jsonl &&
+      node_modules/.bin/tsx src/cli/ingest.ts /tmp/seed.jsonl
+      "
 
 volumes:
   pgdata:
