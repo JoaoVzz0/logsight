@@ -12,12 +12,15 @@ const proxyToApi: ProxyOptions = {
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
+  optimizeDeps: {
+    include: ['recharts'],
+  },
   server: {
     port: 5173,
     strictPort: true,
     proxy:
       command === 'serve'
-        ? { '/logs': proxyToApi, '/imports': proxyToApi }
+        ? { '/logs': proxyToApi, '/imports': proxyToApi, '/analytics': proxyToApi }
         : undefined,
   },
 }))

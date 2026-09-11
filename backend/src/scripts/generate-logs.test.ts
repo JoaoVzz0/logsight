@@ -92,4 +92,20 @@ describe('generateLogFile', () => {
     const spanMs = Math.max(...times) - Math.min(...times)
     expect(spanMs).toBeGreaterThan(24 * 60 * 60 * 1000)
   })
+
+  it('ends the window at generation time so a default 24h dashboard view is populated', async () => {
+    const generatedAt = Date.now()
+    const lines = await generate('json-lines', 'sample.recent.jsonl')
+    const adapter = createJsonLinesAdapter(clock)
+    const records = asRecords(lines.map((line) => adapter.parse(line)))
+
+    const times = records.map((record) => record.timestamp.getTime())
+    const DAY_MS = 24 * 60 * 60 * 1000
+
+    expect(Math.max(...times)).toBeGreaterThan(generatedAt - 5 * 60_000)
+    expect(Math.min(...times)).toBeGreaterThan(generatedAt - 3 * DAY_MS)
+
+    const withinLast24h = times.filter((t) => t > generatedAt - DAY_MS).length
+    expect(withinLast24h / times.length).toBeGreaterThan(0.3)
+  })
 })

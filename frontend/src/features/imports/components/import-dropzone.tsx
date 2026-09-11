@@ -41,9 +41,12 @@ export function ImportDropzone({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor="source-type">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <label
+          className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+          htmlFor="source-type"
+        >
           Format
         </label>
         <Select
@@ -63,11 +66,13 @@ export function ImportDropzone({
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         className={cn(
-          'flex flex-col items-center gap-3 rounded-md border border-dashed px-6 py-10 text-center',
-          isDragging ? 'border-accent bg-accent-subtle' : 'border-border-strong bg-surface',
+          'flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-12 text-center transition-colors',
+          isDragging
+            ? 'border-accent bg-accent-subtle'
+            : 'border-border-strong bg-surface hover:bg-secondary/40',
         )}
       >
-        <p className="text-sm text-foreground">
+        <p className="text-sm font-medium text-foreground">
           {isUploading ? 'Uploading…' : 'Drop a log file here'}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -78,6 +83,7 @@ export function ImportDropzone({
           size="sm"
           disabled={isUploading}
           onClick={() => inputRef.current?.click()}
+          className="mt-1"
         >
           Choose file
         </Button>
@@ -96,7 +102,7 @@ export function ImportDropzone({
       {error !== null && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-md border border-border bg-severity-subtle-error px-3 py-2 text-sm text-foreground"
+          className="flex items-center justify-between gap-3 rounded-md border border-severity-error/30 bg-severity-subtle-error px-4 py-2.5 text-sm text-foreground"
         >
           <span>{error}</span>
           <Button variant="outline" size="sm" onClick={onRetry}>

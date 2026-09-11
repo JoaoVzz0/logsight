@@ -135,6 +135,32 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .scroll-area {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .scroll-area:hover {
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+
+  .scroll-area::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scroll-area::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-area::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+  }
+
+  .scroll-area:hover::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border-strong));
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

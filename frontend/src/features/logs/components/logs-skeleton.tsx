@@ -1,3 +1,5 @@
+import { Skeleton } from '../../../shared/ui/skeleton'
+
 import { GRID_COLUMNS } from './log-row'
 
 const PLACEHOLDER_ROWS = 14
@@ -13,16 +15,16 @@ export function LogsSkeleton() {
         className={`h-8 items-center border-b border-border-strong bg-surface-raised ${GRID_COLUMNS}`}
       >
         <div className="pl-3">
-          <div className="h-3 w-16 rounded bg-muted" />
+          <Skeleton className="h-3 w-16" />
         </div>
         <div>
-          <div className="h-3 w-12 rounded bg-muted" />
+          <Skeleton className="h-3 w-12" />
         </div>
         <div>
-          <div className="h-3 w-14 rounded bg-muted" />
+          <Skeleton className="h-3 w-14" />
         </div>
         <div>
-          <div className="h-3 w-20 rounded bg-muted" />
+          <Skeleton className="h-3 w-20" />
         </div>
       </div>
       {Array.from({ length: PLACEHOLDER_ROWS }, (_, index) => (
@@ -32,16 +34,16 @@ export function LogsSkeleton() {
           className={`h-row items-center border-b border-border ${GRID_COLUMNS}`}
         >
           <div className="pl-3">
-            <div className="h-3 w-14 rounded bg-muted" />
+            <Skeleton className="h-3 w-14" />
           </div>
           <div>
-            <div className="h-3 w-16 rounded bg-muted" />
+            <Skeleton className="h-3 w-16" />
           </div>
           <div>
-            <div className="h-3 w-20 rounded bg-muted" />
+            <Skeleton className="h-3 w-20" />
           </div>
           <div>
-            <div className="h-3 w-3/4 rounded bg-muted" />
+            <Skeleton className="h-3 w-3/4" />
           </div>
         </div>
       ))}

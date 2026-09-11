@@ -104,13 +104,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Default Response */
+                /** @description Issues first seen within the window */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["TopIssuesResponse"];
+                        "application/json": components["schemas"]["NewIssuesResponse"];
                     };
                 };
             };
@@ -143,7 +143,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Default Response */
+                /** @description Issues ranked by event count within the window */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -415,6 +415,7 @@ export interface components {
                 ratio: number;
             }[];
         };
+        /** @description Issues first seen within the window */
         NewIssuesResponse: {
             issues: {
                 fingerprint: string;
@@ -423,8 +424,10 @@ export interface components {
                 eventCount: number;
                 /** Format: date-time */
                 firstSeen: string;
+                services: string[];
             }[];
         };
+        /** @description Issues ranked by event count within the window */
         TopIssuesResponse: {
             issues: {
                 fingerprint: string;
@@ -433,6 +436,7 @@ export interface components {
                 eventCount: number;
                 /** Format: date-time */
                 firstSeen: string;
+                services: string[];
             }[];
         };
         SpikesResponse: {
@@ -443,6 +447,7 @@ export interface components {
                 eventCount: number;
                 /** Format: date-time */
                 firstSeen: string;
+                services: string[];
                 currentCount: number;
                 previousCount: number;
                 multiplier: number;

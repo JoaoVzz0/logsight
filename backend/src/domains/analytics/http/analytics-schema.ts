@@ -22,6 +22,7 @@ const issueSummarySchema = z.object({
   severity: z.number().int().nullable(),
   eventCount: z.number(),
   firstSeen: z.string().datetime({ offset: true }),
+  services: z.array(z.string()),
 })
 
 export const errorRateResponseSchema = z.object({
@@ -35,13 +36,17 @@ export const errorRateResponseSchema = z.object({
   ),
 })
 
-export const newIssuesResponseSchema = z.object({
-  issues: z.array(issueSummarySchema),
-})
+export const newIssuesResponseSchema = z
+  .object({
+    issues: z.array(issueSummarySchema),
+  })
+  .describe('Issues first seen within the window')
 
-export const topIssuesResponseSchema = z.object({
-  issues: z.array(issueSummarySchema),
-})
+export const topIssuesResponseSchema = z
+  .object({
+    issues: z.array(issueSummarySchema),
+  })
+  .describe('Issues ranked by event count within the window')
 
 export const spikesResponseSchema = z.object({
   issues: z.array(
