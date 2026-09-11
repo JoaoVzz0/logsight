@@ -16,14 +16,17 @@ centenas de problemas acionáveis.
 
 ## Telas
 
-_Screenshots aqui — Logs, Dashboard e Imports. Substitua estas linhas pelas
-imagens, por exemplo:_
+**Dashboard**
+![alt text](image-3.png)
 
-```
-![Logs](docs/screenshots/logs.png)
-![Dashboard](docs/screenshots/dashboard.png)
-![Imports](docs/screenshots/imports.png)
-```
+**Issues**
+![alt text](image.png)
+
+**Logs**
+![alt text](image-1.png)
+
+**Imports**
+![alt text](image-2.png)
 
 ## Inspirações
 
@@ -48,7 +51,7 @@ quem já sabe o que está procurando.
 | Dashboard com indicadores e gráficos | Um card por métrica na tela inicial, cada um com a própria consulta, carregamento e estado de erro. |
 | Tendências e distribuição | Taxa de erro ao longo do tempo, novos issues na janela, issues em pico (crescimento anômalo) e distribuição por serviço. |
 
-Uma coisa que vale ser direta: a tela `/issues` tem hoje a lista de issues
+Evolução mapeada: a tela `/issues` tem hoje a lista de issues
 agrupados, com filtro por status e severidade, mas ainda não tem o detalhe
 por ocorrência (timeline, trace) nem as ações de resolver/ignorar pela UI.
 Isso está descrito como evolução em
