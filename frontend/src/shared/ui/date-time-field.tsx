@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
-import { cn } from '../../../shared/lib/cn'
-import { buttonVariants } from '../../../shared/ui/button'
-import { Calendar } from '../../../shared/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '../../../shared/ui/popover'
+import { cn } from '../lib/cn'
+import { buttonVariants } from './button'
+import { Calendar } from './calendar'
+import { Popover, PopoverContent, PopoverTrigger } from './popover'
 
 type DateTimeFieldProps = {
   readonly testId: string

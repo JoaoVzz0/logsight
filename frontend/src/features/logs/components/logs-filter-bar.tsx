@@ -1,6 +1,7 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
 import { Checkbox } from '../../../shared/ui/checkbox'
+import { DateTimeField } from '../../../shared/ui/date-time-field'
 import { Input } from '../../../shared/ui/input'
 import {
   MIN_SEARCH_LENGTH,
@@ -8,8 +9,6 @@ import {
   type SeverityLevelFilter,
 } from '../model/filters'
 import type { SeverityKey } from '../model/severity'
-
-import { DateTimeField } from './date-time-field'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -35,26 +34,10 @@ type LogsFilterBarProps = {
 }
 
 export function LogsFilterBar({ filters, onChange }: LogsFilterBarProps) {
-  const searchTimer = useRef<number | undefined>(undefined)
-
   function commitSearch(value: string) {
     const next = value.length >= MIN_SEARCH_LENGTH ? value : null
     if (next !== filters.q) {
       onChange({ ...filters, q: next })
-    }
-  }
-
-  function onSearchInput(value: string) {
-    window.clearTimeout(searchTimer.current)
-    searchTimer.current = window.setTimeout(
-      () => commitSearch(value),
-      SEARCH_DEBOUNCE_MS,
-    )
-  }
-
-  function onServiceKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter') {
-      commitService(event.currentTarget.value)
     }
   }
 
@@ -82,30 +65,11 @@ export function LogsFilterBar({ filters, onChange }: LogsFilterBarProps) {
       data-testid="logs-filters"
       className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border pb-4"
     >
-      <Field label="Search">
-        <Input
-          key={filters.q ?? ''}
-          data-testid="logs-search"
-          type="search"
-          aria-label="Search message"
-          defaultValue={filters.q ?? ''}
-          placeholder={`Min ${MIN_SEARCH_LENGTH} characters`}
-          onChange={(event) => onSearchInput(event.currentTarget.value)}
-          className={`${FIELD} w-64`}
-        />
-      </Field>
-      <Field label="Service">
-        <Input
-          key={filters.service ?? ''}
-          data-testid="service-filter"
-          aria-label="Service"
-          defaultValue={filters.service ?? ''}
-          placeholder="Any service"
-          onKeyDown={onServiceKeyDown}
-          onBlur={(event) => commitService(event.currentTarget.value)}
-          className={`${FIELD} w-36`}
-        />
-      </Field>
+      <SearchField externalValue={filters.q ?? ''} onCommit={commitSearch} />
+      <ServiceField
+        externalValue={filters.service ?? ''}
+        onCommit={commitService}
+      />
       <Field label="From">
         <DateTimeField
           testId="from-filter"
@@ -163,5 +127,126 @@ function Field({
       </span>
       {children}
     </div>
+  )
+}
+
+function useDebouncedInput(
+  externalValue: string,
+  onSettle: (value: string) => void,
+) {
+  const timer = useRef<number | undefined>(undefined)
+  const lastExternal = useRef(externalValue)
+  const [draft, setDraft] = useState(externalValue)
+  const [pending, setPending] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  if (!focused && externalValue !== lastExternal.current) {
+    lastExternal.current = externalValue
+    setDraft(externalValue)
+    setPending(false)
+  }
+
+  function commit(value: string) {
+    window.clearTimeout(timer.current)
+    setPending(false)
+    onSettle(value)
+  }
+
+  function onChange(value: string) {
+    setDraft(value)
+    setPending(true)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => commit(value), SEARCH_DEBOUNCE_MS)
+  }
+
+  return {
+    draft,
+    pending,
+    onChange,
+    commitNow: () => commit(draft),
+    onFocus: () => setFocused(true),
+    onBlur: () => setFocused(false),
+  }
+}
+
+type SearchFieldProps = {
+  readonly externalValue: string
+  readonly onCommit: (value: string) => void
+}
+
+function SearchField({ externalValue, onCommit }: SearchFieldProps) {
+  const { draft, pending, onChange, onFocus, onBlur } = useDebouncedInput(
+    externalValue,
+    onCommit,
+  )
+  const remaining = MIN_SEARCH_LENGTH - draft.length
+  const hint =
+    draft.length > 0 && remaining > 0
+      ? `Type ${remaining} more character${remaining === 1 ? '' : 's'}`
+      : pending
+        ? 'Searching…'
+        : null
+
+  return (
+    <Field label="Search">
+      <Input
+        data-testid="logs-search"
+        type="search"
+        aria-label="Search message"
+        value={draft}
+        placeholder={`Min ${MIN_SEARCH_LENGTH} characters`}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        className={`${FIELD} w-64`}
+      />
+      <span
+        data-testid="logs-search-hint"
+        aria-live="polite"
+        className="block text-[11px] text-muted-foreground"
+      >
+        {hint}
+      </span>
+    </Field>
+  )
+}
+
+type ServiceFieldProps = {
+  readonly externalValue: string
+  readonly onCommit: (value: string) => void
+}
+
+function ServiceField({ externalValue, onCommit }: ServiceFieldProps) {
+  const { draft, pending, onChange, commitNow, onFocus, onBlur } =
+    useDebouncedInput(externalValue, onCommit)
+
+  return (
+    <Field label="Service">
+      <Input
+        data-testid="service-filter"
+        aria-label="Service"
+        value={draft}
+        placeholder="Any service"
+        onChange={(event) => onChange(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            commitNow()
+          }
+        }}
+        onFocus={onFocus}
+        onBlur={() => {
+          onBlur()
+          commitNow()
+        }}
+        className={`${FIELD} w-36`}
+      />
+      <span
+        data-testid="service-filter-hint"
+        aria-live="polite"
+        className="block text-[11px] text-muted-foreground"
+      >
+        {pending ? 'Applying…' : null}
+      </span>
+    </Field>
   )
 }

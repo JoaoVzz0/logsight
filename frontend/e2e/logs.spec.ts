@@ -119,6 +119,34 @@ test.describe('search', () => {
       )
       .toBe(1)
   })
+
+  test('keeps focus in the field after the debounce commits, so typing can continue', async ({ page }) => {
+    await mockLogs(page, { pages: [mockPage(2, null)] })
+    await page.goto('/logs')
+
+    const search = page.getByTestId('logs-search')
+    await search.click()
+    await search.pressSequentially('timeout', { delay: 40 })
+    await expect(page).toHaveURL(/q=timeout/)
+    await expect(search).toBeFocused()
+
+    await search.press('Backspace')
+    await expect(search).toHaveValue('timeou')
+  })
+
+  test('keeps focus in the service field after it auto-commits while typing', async ({ page }) => {
+    await mockLogs(page, { pages: [mockPage(2, null)] })
+    await page.goto('/logs')
+
+    const service = page.getByTestId('service-filter')
+    await service.click()
+    await service.pressSequentially('checkout', { delay: 40 })
+    await expect(page).toHaveURL(/service=checkout/)
+    await expect(service).toBeFocused()
+
+    await service.pressSequentially('-api', { delay: 40 })
+    await expect(service).toHaveValue('checkout-api')
+  })
 })
 
 test.describe('row presentation', () => {

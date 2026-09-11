@@ -42,6 +42,40 @@ test.describe('time range', () => {
       await expect.poll(() => handle.requests[key].length).toBeGreaterThanOrEqual(2)
     }
   })
+
+  test('reading a custom range from the url shows the from/to fields and requests that window', async ({ page }) => {
+    const handle = await mockDashboard(page)
+    await page.goto(
+      '/?range=custom&from=2026-01-01T00%3A00%3A00.000Z&to=2026-01-02T00%3A00%3A00.000Z',
+    )
+
+    await expect(page.getByTestId('dashboard-from-filter')).toBeVisible()
+    await expect(page.getByTestId('dashboard-to-filter')).toBeVisible()
+
+    const request = handle.requests.errorRate.at(-1)!
+    expect(request.searchParams.get('from')).toBe('2026-01-01T00:00:00.000Z')
+    expect(request.searchParams.get('to')).toBe('2026-01-02T00:00:00.000Z')
+  })
+
+  test('switching the selector to custom keeps the current window and shows the from/to fields', async ({ page }) => {
+    await mockDashboard(page)
+    await page.goto('/')
+    await expect(page.getByTestId('error-rate-card')).toBeVisible()
+
+    await page.getByTestId('time-range-selector').selectOption('custom')
+
+    await expect(page).toHaveURL(/range=custom/)
+    await expect(page.getByTestId('dashboard-from-filter')).toBeVisible()
+    await expect(page.getByTestId('dashboard-to-filter')).toBeVisible()
+  })
+
+  test('falls back to the default preset when the custom window in the url is invalid', async ({ page }) => {
+    await mockDashboard(page)
+    await page.goto('/?range=custom&from=not-a-date')
+
+    await expect(page.getByTestId('time-range-selector')).toHaveValue('24h')
+    await expect(page.getByTestId('dashboard-from-filter')).toHaveCount(0)
+  })
 })
 
 test.describe('cards', () => {
