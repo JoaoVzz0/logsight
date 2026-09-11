@@ -8,6 +8,7 @@ export type IssueSummary = {
   readonly severity: number | null
   readonly eventCount: number
   readonly firstSeen: string
+  readonly services: string[]
 }
 
 export type NewIssuesResult = {
@@ -35,5 +36,6 @@ export function toIssueSummary(issue: Issue): IssueSummary {
     severity: issue.severityNumber,
     eventCount: Number(issue.eventCount),
     firstSeen: issue.firstSeen.toISOString(),
+    services: issue.affectedServices,
   }
 }

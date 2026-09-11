@@ -377,6 +377,12 @@
                 "firstSeen": {
                   "type": "string",
                   "format": "date-time"
+                },
+                "services": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "required": [
@@ -384,7 +390,8 @@
                 "sampleMessage",
                 "severity",
                 "eventCount",
-                "firstSeen"
+                "firstSeen",
+                "services"
               ],
               "additionalProperties": false
             }
@@ -393,7 +400,8 @@
         "required": [
           "issues"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Issues first seen within the window"
       },
       "TopIssuesResponse": {
         "type": "object",
@@ -419,6 +427,12 @@
                 "firstSeen": {
                   "type": "string",
                   "format": "date-time"
+                },
+                "services": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "required": [
@@ -426,7 +440,8 @@
                 "sampleMessage",
                 "severity",
                 "eventCount",
-                "firstSeen"
+                "firstSeen",
+                "services"
               ],
               "additionalProperties": false
             }
@@ -435,7 +450,8 @@
         "required": [
           "issues"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Issues ranked by event count within the window"
       },
       "SpikesResponse": {
         "type": "object",
@@ -462,6 +478,12 @@
                   "type": "string",
                   "format": "date-time"
                 },
+                "services": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "currentCount": {
                   "type": "number"
                 },
@@ -478,6 +500,7 @@
                 "severity",
                 "eventCount",
                 "firstSeen",
+                "services",
                 "currentCount",
                 "previousCount",
                 "multiplier"
@@ -700,11 +723,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response",
+            "description": "Issues first seen within the window",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TopIssuesResponse"
+                  "$ref": "#/components/schemas/NewIssuesResponse"
                 }
               }
             }
@@ -747,7 +770,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response",
+            "description": "Issues ranked by event count within the window",
             "content": {
               "application/json": {
                 "schema": {

@@ -22,6 +22,7 @@ describe('newIssues', () => {
           severityNumber: 17,
           firstSeen: '2026-02-01T12:00:00.000Z',
           eventCount: 5,
+          affectedServices: ['checkout'],
         },
         {
           fingerprint: 'fp-before',
@@ -47,6 +48,7 @@ describe('newIssues', () => {
         severity: 17,
         eventCount: 5,
         firstSeen: '2026-02-01T12:00:00.000Z',
+        services: ['checkout'],
       },
     ])
   })

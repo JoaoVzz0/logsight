@@ -13,3 +13,20 @@ export type LogRecord = LogListResponse['records'][number]
 export type LogListQuery = NonNullable<
   paths['/logs']['get']['parameters']['query']
 >
+
+export type ErrorRateResponse =
+  paths['/analytics/error-rate']['get']['responses'][200]['content']['application/json']
+
+export type NewIssuesResponse =
+  paths['/analytics/new-issues']['get']['responses'][200]['content']['application/json']
+
+export type TopIssuesResponse =
+  paths['/analytics/top-issues']['get']['responses'][200]['content']['application/json']
+
+export type SpikesResponse =
+  paths['/analytics/spikes']['get']['responses'][200]['content']['application/json']
+
+export type ByServiceResponse =
+  paths['/analytics/by-service']['get']['responses'][200]['content']['application/json']
+
+export type IssueSummary = NewIssuesResponse['issues'][number]

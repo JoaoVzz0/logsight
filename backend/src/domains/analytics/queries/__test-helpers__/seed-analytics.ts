@@ -6,6 +6,7 @@ export type SeedIssue = {
   readonly severityNumber?: number | null
   readonly firstSeen: string
   readonly eventCount?: number
+  readonly affectedServices?: readonly string[]
 }
 
 export type SeedRecord = {
@@ -34,7 +35,7 @@ export async function seedAnalytics(
       firstSeen: new Date(issue.firstSeen),
       lastSeen: new Date(issue.firstSeen),
       eventCount: BigInt(issue.eventCount ?? 0),
-      affectedServices: [],
+      affectedServices: [...(issue.affectedServices ?? [])],
     })),
   })
 
