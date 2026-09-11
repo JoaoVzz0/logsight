@@ -12,6 +12,14 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod'
 
+import { analyticsRoutes } from '../domains/analytics/http/analytics-routes'
+import {
+  byServiceResponseSchema,
+  errorRateResponseSchema,
+  newIssuesResponseSchema,
+  spikesResponseSchema,
+  topIssuesResponseSchema,
+} from '../domains/analytics/http/analytics-schema'
 import { createImportProcessing } from '../domains/ingestion/infra/import-processing'
 import { InProcessJobQueue } from '../domains/ingestion/infra/queue/in-process-job-queue'
 import { LocalFileStorage } from '../domains/ingestion/infra/storage/local-file-storage'
@@ -61,6 +69,11 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
         CreateImportResponse: createImportResponseSchema,
         ImportStatusResponse: importStatusResponseSchema,
         ImportListResponse: importListResponseSchema,
+        ErrorRateResponse: errorRateResponseSchema,
+        NewIssuesResponse: newIssuesResponseSchema,
+        TopIssuesResponse: topIssuesResponseSchema,
+        SpikesResponse: spikesResponseSchema,
+        ByServiceResponse: byServiceResponseSchema,
       },
     }),
   })
@@ -76,6 +89,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   })
 
   await app.register(logsRoutes, { prisma: deps.prisma })
+  await app.register(analyticsRoutes, { prisma: deps.prisma })
   await app.register(importsRoutes, {
     prisma: deps.prisma,
     registerImportJob: createImportProcessing({
